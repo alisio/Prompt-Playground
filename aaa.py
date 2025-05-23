@@ -1,282 +1,306 @@
 import streamlit as st
-import requests
-import json
+import openai
+import ollama
+import json # Para tratar possíveis erros de JSON em respostas
 
-# --- Funções de Chamada aos Endpoints ---
+# --- Configuração da Página ---
+st.set_page_config(layout="wide", page_title="LLM Prompt Comparator")
+
+# --- Funções Auxiliares para Chamadas de API ---
 
 def get_ollama_models(base_url):
-    """Busca modelos disponíveis de um endpoint Ollama."""
+    """Lista modelos disponíveis em um endpoint Ollama."""
     try:
-        response = requests.get(f"{base_url.rstrip('/')}/api/tags", timeout=10)
-        response.raise_for_status()
-        models_data = response.json().get("models", [])
-        return sorted([model["name"] for model in models_data])
-    except requests.exceptions.Timeout:
-        st.error(f"Timeout ao buscar modelos Ollama de {base_url}.")
-    except requests.exceptions.RequestException as e:
-        st.error(f"Erro ao buscar modelos Ollama de {base_url}: {e}")
-    except json.JSONDecodeError:
-        st.error(f"Resposta inválida (não JSON) de {base_url}/api/tags")
+        client = ollama.Client(host=base_url)
+        models_info = client.list()
+        return [model['model'] for model in models_info['models']]
     except Exception as e:
-        st.error(f"Erro inesperado ao buscar modelos Ollama: {e}")
-    return []
+        st.sidebar.error(f"Ollama ({base_url}): Erro ao listar modelos: {e}")
+        return []
 
-def get_openai_compatible_models(base_url, api_key=None):
-    """Busca modelos disponíveis de um endpoint compatível com OpenAI."""
-    headers = {}
-    if api_key:
-        headers["Authorization"] = f"Bearer {api_key}"
-    
+def query_ollama(base_url, model_name, prompt, temperature, max_tokens, top_p):
+    """Envia um prompt para um modelo Ollama."""
     try:
-        response = requests.get(f"{base_url.rstrip('/')}/v1/models", headers=headers, timeout=10)
-        response.raise_for_status()
-        data = response.json()
-        return sorted([model["id"] for model in data.get("data", []) if "id" in model])
-    except requests.exceptions.Timeout:
-        st.error(f"Timeout ao buscar modelos OpenAI de {base_url}.")
-    except requests.exceptions.RequestException as e:
-        st.error(f"Erro ao buscar modelos OpenAI de {base_url}: {e}")
-    except json.JSONDecodeError:
-        st.error(f"Resposta inválida (não JSON) de {base_url}/v1/models")
+        client = ollama.Client(host=base_url)
+        response = client.chat(
+            model=model_name,
+            messages=[{'role': 'user', 'content': prompt}],
+            options={
+                'temperature': temperature,
+                'num_predict': max_tokens, # Em Ollama, num_predict é análogo a max_tokens
+                'top_p': top_p,
+            }
+        )
+        return response['message']['content']
     except Exception as e:
-        st.error(f"Erro inesperado ao buscar modelos OpenAI: {e}")
-    return []
-
-def query_ollama(base_url, model_name, prompt):
-    """Envia um prompt para um modelo Ollama e retorna a resposta."""
-    try:
-        payload = {"model": model_name, "prompt": prompt, "stream": False}
-        response = requests.post(f"{base_url.rstrip('/')}/api/generate", json=payload, timeout=120) # Timeout maior para geração
-        response.raise_for_status()
-        return response.json().get("response", "Nenhuma resposta recebida.")
-    except requests.exceptions.Timeout:
-        return f"Timeout ao consultar Ollama ({model_name}). Aumente o timeout se necessário."
-    except requests.exceptions.RequestException as e:
         return f"Erro ao consultar Ollama ({model_name}): {e}"
-    except json.JSONDecodeError:
-        return f"Resposta inválida (não JSON) do Ollama ({model_name})."
-    except Exception as e:
-        return f"Erro inesperado ao consultar Ollama: {e}"
 
-def query_openai_compatible(base_url, api_key, model_name, prompt):
-    """Envia um prompt para um modelo compatível com OpenAI e retorna a resposta."""
-    headers = {"Content-Type": "application/json"}
-    if api_key:
-        headers["Authorization"] = f"Bearer {api_key}"
-
-    payload = {
-        "model": model_name,
-        "messages": [{"role": "user", "content": prompt}],
-        "stream": False
-    }
+def get_openai_compatible_models(api_key, base_url):
+    """
+    Tenta listar modelos de um endpoint OpenAI compatível.
+    Muitos endpoints privados podem não suportar isso ou requerer permissões específicas.
+    """
     try:
-        response = requests.post(f"{base_url.rstrip('/')}/v1/chat/completions", headers=headers, json=payload, timeout=120) # Timeout maior
-        response.raise_for_status()
-        data = response.json()
-        
-        if "choices" in data and isinstance(data["choices"], list) and data["choices"]:
-            first_choice = data["choices"][0]
-            if "message" in first_choice and isinstance(first_choice["message"], dict):
-                if "content" in first_choice["message"]:
-                    return first_choice["message"]["content"]
-                else:
-                    return "Resposta recebida, mas 'content' não encontrado na mensagem."
-            else:
-                return "Resposta recebida, mas 'message' não encontrado ou formato inválido na primeira escolha ('choice')."
-        else:
-            return f"Resposta recebida, mas 'choices' está ausente, vazio ou formato inválido. Resposta completa: {json.dumps(data)}"
+        client = openai.OpenAI(api_key=api_key, base_url=base_url)
+        models = client.models.list()
+        return [model.id for model in models.data]
+    except Exception:
+        # Se falhar (comum para endpoints privados não-OpenAI), retorna lista vazia
+        # O usuário precisará digitar o nome do modelo manualmente.
+        return []
 
-    except requests.exceptions.Timeout:
-        return f"Timeout ao consultar modelo OpenAI-compatível ({model_name}). Aumente o timeout se necessário."
-    except requests.exceptions.RequestException as e:
-        error_message = f"Erro HTTP ao consultar modelo OpenAI-compatível ({model_name}): {e}"
-        if e.response is not None:
-            try:
-                error_detail = e.response.json() 
-                error_message += f" - Detalhe: {json.dumps(error_detail)}"
-            except json.JSONDecodeError:
-                error_message += f" - Detalhe (não JSON): {e.response.text[:500]}" # Limitar tamanho do texto
-        return error_message
-    except json.JSONDecodeError:
-        return f"Resposta inválida (não JSON) do modelo OpenAI-compatível ({model_name})."
+
+def query_openai_compatible(api_key, base_url, model_name, prompt, temperature, max_tokens, top_p):
+    """Envia um prompt para um endpoint compatível com OpenAI."""
+    try:
+        client = openai.OpenAI(api_key=api_key, base_url=base_url)
+        completion = client.chat.completions.create(
+            model=model_name,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=temperature,
+            max_tokens=max_tokens,
+            top_p=top_p
+        )
+        return completion.choices[0].message.content
+    except openai.APIConnectionError as e:
+        return f"Erro de conexão com API OpenAI ({model_name}): {e}"
+    except openai.AuthenticationError as e:
+        return f"Erro de autenticação com API OpenAI ({model_name}): Chave inválida ou não fornecida? {e}"
+    except openai.RateLimitError as e:
+        return f"Erro de limite de taxa com API OpenAI ({model_name}): {e}"
+    except openai.NotFoundError as e:
+         return f"Erro: Modelo '{model_name}' não encontrado no endpoint '{base_url}'. Verifique o nome. {e}"
     except Exception as e:
-        return f"Erro inesperado ao consultar modelo OpenAI-compatível ({model_name}): {e}"
+        try:
+            # Tentar extrair mensagem de erro mais detalhada se for um erro da API
+            error_details = json.loads(str(e)) # Muitas APIs retornam JSON no corpo do erro
+            msg = error_details.get("error", {}).get("message", str(e))
+            return f"Erro ao consultar API OpenAI ({model_name}): {msg}"
+        except:
+            return f"Erro ao consultar API OpenAI ({model_name}): {e}"
+
 
 # --- Interface Streamlit ---
-st.set_page_config(layout="wide")
-st.title("🚀 Comparador de Respostas de LLMs")
+st.title("🧪 LLM Prompt Comparator Dashboard")
+st.markdown("Desenvolva e compare prompts em diferentes modelos e endpoints LLM.")
 
-st.markdown("""
-Esta ferramenta permite que você envie um prompt para dois modelos de linguagem diferentes
-e compare suas respostas lado a lado. Configure os endpoints e modelos abaixo.
-""")
-
-if 'model_configs' not in st.session_state:
-    st.session_state.model_configs = [
-        {"type": "Ollama", "base_url": "http://localhost:11434", "api_key": None, "selected_model": None, "available_models": []},
-        {"type": "OpenAI-compatível", "base_url": "", "api_key": None, "selected_model": None, "available_models": []}
-    ]
+# --- Estado da Sessão para Armazenar Respostas ---
 if 'responses' not in st.session_state:
-    st.session_state.responses = [None, None]
-if 'prompt' not in st.session_state:
-    st.session_state.prompt = "Write a short poem about Python programming."
+    st.session_state.responses = [None, None, None]
+if 'model_configs' not in st.session_state:
+    st.session_state.model_configs = [{}, {}, {}] # Para armazenar configurações de cada modelo
 
-NUM_MODELS = 2
+# --- Sidebar para Configurações Globais e por Modelo ---
+with st.sidebar:
+    st.header("⚙️ Configurações Gerais")
 
-cols_config = st.columns(NUM_MODELS)
+    # Credenciais e URLs Base
+    st.subheader("🔑 Credenciais e Endpoints")
+    ollama_base_url = st.text_input("Ollama Base URL", value="http://localhost:11434", key="ollama_url")
+    
+    openai_api_key = st.text_input("OpenAI-compatível API Key", type="password", key="openai_key", help="Pode ser 'NA' ou qualquer string se o endpoint não exigir chave.")
+    openai_base_url = st.text_input("OpenAI-compatível Base URL", key="openai_base_url", help="Ex: https://api.openai.com/v1 ou URL do seu endpoint privado")
 
-for i in range(NUM_MODELS):
-    with cols_config[i]:
-        st.subheader(f"Configuração Modelo {i+1}")
-        key_suffix = f"_model_{i}"
+    # Parâmetros de Inferência Globais (podem ser sobrescritos por modelo se desejado)
+    st.subheader("🧠 Parâmetros de Inferência")
+    global_temperature = st.slider("Temperatura", 0.0, 1.0, 0.7, 0.05, key="global_temp")
+    global_max_tokens = st.number_input("Max Tokens", 50, 4096, 512, 50, key="global_max_tokens")
+    global_top_p = st.slider("Top P", 0.0, 1.0, 0.9, 0.05, key="global_top_p")
+
+    st.markdown("---")
+    
+    num_models_to_compare = st.radio(
+        "Comparar Modelos:",
+        (1, 2, 3),
+        index=1, # Default para 2 modelos
+        horizontal=True,
+        key="num_models"
+    )
+    st.markdown("---")
+
+    # Configuração por Modelo
+    model_configs_ui = []
+    available_ollama_models = get_ollama_models(ollama_base_url) if ollama_base_url else []
+    
+    # Cache para modelos OpenAI para não chamar API toda hora se URL não mudar
+    if 'last_openai_base_url' not in st.session_state:
+        st.session_state.last_openai_base_url = ""
+    if 'available_openai_models' not in st.session_state:
+        st.session_state.available_openai_models = []
+
+    if openai_base_url and openai_api_key and openai_base_url != st.session_state.get('last_openai_base_url', ""):
+        with st.spinner(f"Buscando modelos de {openai_base_url}..."):
+            st.session_state.available_openai_models = get_openai_compatible_models(openai_api_key, openai_base_url)
+            st.session_state.last_openai_base_url = openai_base_url
+    
+    available_openai_models_cached = st.session_state.available_openai_models
+
+
+    for i in range(num_models_to_compare):
+        st.header(f"Modelo {i+1}")
+        config = {}
+        config['active'] = st.checkbox(f"Ativar Modelo {i+1}", value=True, key=f"active_{i}")
         
-        # Acessar e modificar diretamente o dicionário em session_state
-        current_config_key = f"model_config_{i}" # Chave única para o dicionário de configuração do modelo
-        
-        # Inicializar a configuração específica do modelo se não existir
-        if current_config_key not in st.session_state:
-            st.session_state[current_config_key] = st.session_state.model_configs[i]
-
-        # Referenciar o dicionário no session_state
-        config_ref = st.session_state.model_configs[i]
-
-
-        config_ref["type"] = st.selectbox(
-            f"Tipo de Endpoint",
-            ["Ollama", "OpenAI-compatível"],
-            index=["Ollama", "OpenAI-compatível"].index(config_ref["type"]), # Define o índice baseado no valor atual
-            key=f"endpoint_type{key_suffix}"
-        )
-
-        config_ref["base_url"] = st.text_input(
-            f"URL Base",
-            value=config_ref["base_url"],
-            placeholder="Ex: http://localhost:11434 ou https://api.example.com",
-            key=f"base_url{key_suffix}"
-        )
-
-        if config_ref["type"] == "OpenAI-compatível":
-            config_ref["api_key"] = st.text_input(
-                f"Chave API (opcional)",
-                value=config_ref.get("api_key", ""),
-                type="password",
-                key=f"api_key{key_suffix}"
+        if config['active']:
+            config['endpoint_type'] = st.selectbox(
+                f"Tipo de Endpoint (Modelo {i+1})",
+                ("Ollama", "OpenAI-compatível"),
+                key=f"endpoint_type_{i}"
             )
-        else:
-            config_ref["api_key"] = None # Resetar se não for OpenAI
 
-        if st.button(f"Carregar Modelos do Endpoint {i+1}", key=f"load_models{key_suffix}"):
-            if not config_ref["base_url"]:
-                st.warning("Por favor, insira a URL Base.")
-                config_ref["available_models"] = []
-                config_ref["selected_model"] = None
-            else:
-                with st.spinner(f"Buscando modelos do Endpoint {i+1}..."):
-                    if config_ref["type"] == "Ollama":
-                        config_ref["available_models"] = get_ollama_models(config_ref["base_url"])
-                    elif config_ref["type"] == "OpenAI-compatível":
-                        config_ref["available_models"] = get_openai_compatible_models(config_ref["base_url"], config_ref["api_key"])
-                    
-                    if not config_ref["available_models"]:
-                        st.error("Nenhum modelo encontrado ou falha ao carregar.")
-                    # Resetar o modelo selecionado QUANDO novos modelos são carregados
-                    config_ref["selected_model"] = None 
-            st.rerun()
+            if config['endpoint_type'] == "Ollama":
+                if available_ollama_models:
+                    config['model_name'] = st.selectbox(
+                        f"Modelo Ollama (Modelo {i+1})",
+                        options=available_ollama_models,
+                        index=0 if available_ollama_models else None,
+                        key=f"ollama_model_{i}"
+                    )
+                else:
+                    config['model_name'] = st.text_input(
+                        f"Nome do Modelo Ollama (Modelo {i+1})",
+                        help="Ex: llama3:latest. Modelos não puderam ser listados.",
+                        key=f"ollama_model_text_{i}"
+                    )
+            else: # OpenAI-compatível
+                if available_openai_models_cached:
+                    config['model_name'] = st.selectbox(
+                        f"Modelo OpenAI (Modelo {i+1})",
+                        options=available_openai_models_cached,
+                        index=0 if available_openai_models_cached else None,
+                        help="Selecione ou digite o nome do modelo se não estiver na lista.",
+                        key=f"openai_model_{i}"
+                    )
+                    # Adicionar opção para digitar manualmente se necessário, ou se a lista estiver vazia
+                    if st.checkbox(f"Digitar nome do modelo OpenAI manualmente (Modelo {i+1})", key=f"openai_manual_toggle_{i}") or not available_openai_models_cached :
+                         config['model_name'] = st.text_input(
+                            f"Nome do Modelo OpenAI (Modelo {i+1})",
+                            value=config.get('model_name', "gpt-3.5-turbo"),
+                            help="Ex: gpt-4, gpt-3.5-turbo, ou nome do seu modelo privado",
+                            key=f"openai_model_text_{i}"
+                        )
+                else:
+                     config['model_name'] = st.text_input(
+                        f"Nome do Modelo OpenAI (Modelo {i+1})",
+                        value=config.get('model_name', "gpt-3.5-turbo"),
+                        help="Ex: gpt-4, gpt-3.5-turbo, ou nome do seu modelo privado. Modelos não puderam ser listados.",
+                        key=f"openai_model_text_alt_{i}"
+                    )
 
-        options_for_selectbox = config_ref.get("available_models", [])
-        if not isinstance(options_for_selectbox, list):
-            options_for_selectbox = []
-            
-        current_selected_model_val = config_ref.get("selected_model")
-        current_model_idx_val = None
-        if current_selected_model_val and options_for_selectbox and current_selected_model_val in options_for_selectbox:
-            current_model_idx_val = options_for_selectbox.index(current_selected_model_val)
+
+            # Parâmetros específicos (opcional, sobrescreve globais)
+            # Por simplicidade, vamos usar os globais, mas aqui seria o local para sliders por modelo
+            config['temperature'] = global_temperature
+            config['max_tokens'] = global_max_tokens
+            config['top_p'] = global_top_p
         
-        config_ref["selected_model"] = st.selectbox(
-            f"Escolha o Modelo",
-            options_for_selectbox,
-            index=current_model_idx_val, # Usar o índice calculado
-            key=f"model_select{key_suffix}", # Chave única para o selectbox
-            disabled=not bool(options_for_selectbox),
-            placeholder="Escolha um modelo" if options_for_selectbox else "Carregue modelos primeiro"
-        )
+        model_configs_ui.append(config)
+        st.markdown("---")
+    
+    st.session_state.model_configs = model_configs_ui
 
-st.session_state.prompt = st.text_area(
-    "Digite seu prompt aqui:",
-    value=st.session_state.prompt,
-    height=150,
-    key="prompt_input"
-)
 
-if st.button("Gerar Respostas", type="primary", key="generate_button"):
-    if not st.session_state.prompt:
+# --- Área Principal para Prompt e Respostas ---
+st.subheader("💬 Prompt")
+prompt_text = st.text_area("Digite seu prompt aqui:", height=150, key="prompt_input", value="Write a poem about Python")
+
+if st.button("🚀 Gerar Respostas", type="primary"):
+    if not prompt_text.strip():
         st.warning("Por favor, insira um prompt.")
     else:
-        all_configs_valid = True
-        for i in range(NUM_MODELS):
-            config = st.session_state.model_configs[i]
-            if not (config.get("base_url") and config.get("selected_model")):
-                st.error(f"Modelo {i+1} não está completamente configurado. Verifique URL Base e seleção de Modelo.")
-                all_configs_valid = False
-        
-        if all_configs_valid:
-            temp_responses = [None] * NUM_MODELS
-            # Usar st.status para mensagens de log que podem ser expandidas/colapsadas
-            with st.status("Gerando respostas...", expanded=True) as status_container:
-                for i in range(NUM_MODELS):
-                    config = st.session_state.model_configs[i]
-                    status_container.write(f"Consultando Modelo {i+1}: {config['selected_model']} em {config['base_url']}...")
-                    try:
-                        if config["type"] == "Ollama":
-                            temp_responses[i] = query_ollama(
-                                config["base_url"],
-                                config["selected_model"],
-                                st.session_state.prompt
-                            )
-                        elif config["type"] == "OpenAI-compatível":
-                            temp_responses[i] = query_openai_compatible(
-                                config["base_url"],
-                                config["api_key"],
-                                config["selected_model"],
-                                st.session_state.prompt
-                            )
-                        status_container.write(f"Resposta recebida do Modelo {i+1}.")
-                    except Exception as e: 
-                        error_msg = f"Falha na lógica de chamada para o Modelo {i+1} ({config['selected_model']}): {e}"
-                        st.error(error_msg) # Mostrar erro principal fora do status
-                        status_container.write(error_msg) # Também logar no status
-                        temp_responses[i] = f"Erro interno ao processar: {e}"
-                st.session_state.responses = temp_responses
-                status_container.update(label="Respostas geradas!", state="complete", expanded=False)
-        else:
-            st.warning("Configure ambos os modelos corretamente antes de gerar respostas.")
-
-if any(res is not None for res in st.session_state.responses):
-    st.divider()
-    st.subheader("Respostas dos Modelos")
-    cols_responses = st.columns(NUM_MODELS)
-    for i in range(NUM_MODELS):
-        with cols_responses[i]:
-            config = st.session_state.model_configs[i]
-            model_name_display = config.get("selected_model", f"Modelo {i+1} (Não selecionado)")
-            st.markdown(f"#### {model_name_display}")
+        st.session_state.responses = [None] * 3 # Limpa respostas anteriores
+        with st.spinner("Gerando respostas..."):
+            active_configs = [conf for conf in st.session_state.model_configs if conf.get('active', False)]
             
-            response_content = st.session_state.responses[i]
-            if response_content:
-                # Verificação de erro mais robusta
-                is_error_response = False
-                if isinstance(response_content, str):
-                    keywords = ["erro", "failed", "não encontrado", "inválida", "ausente", "timeout", "http", "exception"]
-                    is_error_response = any(keyword in response_content.lower() for keyword in keywords)
+            for idx, config in enumerate(active_configs):
+                if not config.get('model_name', '').strip():
+                    st.session_state.responses[idx] = f"Modelo {idx+1}: Nome do modelo não especificado."
+                    continue
 
-                if is_error_response:
-                    st.error(response_content)
-                else:
-                    st.markdown(response_content, unsafe_allow_html=True)
-            elif config.get("selected_model"): # Se um modelo foi selecionado mas não houve resposta
-                st.info("Nenhuma resposta retornada ou ocorreu um erro não capturado.")
-            # else: # Não mostrar nada se o modelo nem foi selecionado e não houve tentativa de resposta.
-            #    st.empty()
+                response_text = ""
+                if config['endpoint_type'] == "Ollama":
+                    if not ollama_base_url:
+                        st.session_state.responses[idx] = f"Modelo {idx+1} (Ollama): URL base do Ollama não configurada."
+                        continue
+                    response_text = query_ollama(
+                        ollama_base_url,
+                        config['model_name'],
+                        prompt_text,
+                        config['temperature'],
+                        config['max_tokens'],
+                        config['top_p']
+                    )
+                elif config['endpoint_type'] == "OpenAI-compatível":
+                    if not openai_api_key or not openai_base_url:
+                        st.session_state.responses[idx] = f"Modelo {idx+1} (OpenAI): API Key ou Base URL não configurados."
+                        continue
+                    response_text = query_openai_compatible(
+                        openai_api_key,
+                        openai_base_url,
+                        config['model_name'],
+                        prompt_text,
+                        config['temperature'],
+                        config['max_tokens'],
+                        config['top_p']
+                    )
+                st.session_state.responses[idx] = response_text
+        st.success("Respostas geradas!")
 
-st.markdown("---")
-st.caption("Desenvolvido como um comparador de LLMs.")
+# --- Exibição das Respostas ---
+st.subheader("📊 Resultados da Comparação")
+
+active_model_indices = [i for i, conf in enumerate(st.session_state.model_configs) if conf.get('active', False) and i < num_models_to_compare]
+
+if any(st.session_state.responses[i] for i in active_model_indices):
+    # Criar colunas dinamicamente com base no número de modelos ativos selecionados para comparação
+    cols = st.columns(len(active_model_indices) if active_model_indices else 1)
+    
+    col_idx = 0
+    for i in active_model_indices:
+        config = st.session_state.model_configs[i]
+        response = st.session_state.responses[i]
+        
+        if response: # Apenas mostra se há uma resposta (ou erro) para este slot
+            with cols[col_idx]:
+                model_display_name = config.get('model_name', f"Modelo {i+1} (Não Configurado)")
+                if not config.get('model_name'): # Se o nome do modelo estiver vazio mas ativo
+                    model_display_name = f"Modelo {i+1} ({config.get('endpoint_type', 'N/A')})"
+
+                st.markdown(f"#### Modelo {i+1}: {model_display_name}")
+                st.markdown(f"**Endpoint:** `{config.get('endpoint_type', 'N/A')}`")
+                
+                # Mostrar parâmetros usados
+                with st.expander("Parâmetros Usados"):
+                    st.caption(f"Temp: {config.get('temperature', global_temperature)}, Max Tokens: {config.get('max_tokens', global_max_tokens)}, Top P: {config.get('top_p', global_top_p)}")
+
+                # Usar st.text_area com disabled=True para permitir seleção e cópia fácil
+                st.text_area(
+                    f"Resposta de {model_display_name}",
+                    value=str(response), # Garantir que é string
+                    height=400,
+                    key=f"response_output_{i}",
+                    disabled=True, # Faz parecer um display mas permite seleção
+                    label_visibility="collapsed"
+                )
+            col_idx += 1
+    
+    if not active_model_indices:
+         st.info("Nenhum modelo ativo para exibir resultados. Configure e ative modelos na barra lateral.")
+
+else:
+    st.info("Clique em 'Gerar Respostas' após configurar os modelos e inserir um prompt.")
+
+# --- Dicas de Uso ---
+st.sidebar.markdown("---")
+st.sidebar.info("""
+**Como usar:**
+1.  Configure as URLs e chaves de API na seção "Credenciais".
+2.  Escolha quantos modelos comparar (1 a 3).
+3.  Para cada modelo:
+    * Ative-o.
+    * Selecione o tipo de endpoint.
+    * Escolha/digite o nome do modelo.
+    * (Opcional) Ajuste parâmetros de inferência (padrão globais).
+4.  Digite seu prompt na área principal.
+5.  Clique em "Gerar Respostas".
+""")
