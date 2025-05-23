@@ -5,8 +5,8 @@ import json # Para tratar possíveis erros de JSON em respostas
 
 # --- Language Configuration ---
 translations = {
-    "page_title": {"pt": "Comparador de Prompts LLM", "en": "LLM Prompt Comparator"},
-    "app_title": {"pt": "🧪 Painel Comparador de Prompts LLM", "en": "🧪 LLM Prompt Comparator Dashboard"},
+    "page_title": {"pt": "Prompt-Playground: Comparador de Prompts LLM", "en": "Prompt-Playground: LLM Prompt Comparator"},
+    "app_title": {"pt": "Prompt-Playground: Painel Comparador de Prompts LLM", "en": "Prompt-Playground: LLM Prompt Comparator Dashboard"},
     "app_subtitle": {"pt": "Desenvolva e compare prompts em diferentes modelos e endpoints LLM.", "en": "Develop and compare prompts across different LLM models and endpoints."},
     "general_settings": {"pt": "⚙️ Configurações Gerais", "en": "⚙️ General Settings"},
     "credentials_endpoints": {"pt": "🔑 Credenciais e Endpoints", "en": "🔑 Credentials and Endpoints"},
