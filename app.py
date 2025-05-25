@@ -619,8 +619,7 @@ with st.sidebar:
         st.header(t("model_config_header").format(number=i+1))
         current_ui_config = st.session_state.model_configs[i].copy()
 
-        # current_ui_config['active'] = st.checkbox(t("activate_model").format(number=i+1), value=current_ui_config.get('active', i==0), key=f"active_{i}_widget")
-        current_ui_config['active'] = st.checkbox(t("activate_model").format(number=i+1), value=1, key=f"active_{i}_widget")
+        current_ui_config['active'] = st.checkbox(t("activate_model").format(number=i+1), value=current_ui_config.get('active', i==0), key=f"active_{i}_widget")
         
         if current_ui_config['active']:
             current_ui_config['endpoint_type'] = st.selectbox(t("endpoint_type").format(number=i+1), ("Ollama", "OpenAI-compatible"), index=["Ollama", "OpenAI-compatible"].index(current_ui_config.get('endpoint_type', "Ollama")), key=f"endpoint_type_{i}_widget")
