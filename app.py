@@ -22,7 +22,7 @@ translations = {
     "model_user_given_name_label": {"pt": "Nome do Modelo (Apelido)", "en": "Model Name (Nickname)"}, # Label for input
     "activate_model_toggle_help": {"pt": "Ativar/Desativar este modelo", "en": "Activate/Deactivate this model"}, # Help for toggle
     "remove_model_button_help": {"pt": "Remover este modelo", "en": "Remove this model"}, # Help for button
-    "model_advanced_settings_expander": {"pt": "Configurações Avançadas de \"{name}\"", "en": "Advanced Settings for \"{name}\""}, # New
+    "model_advanced_settings_expander": {"pt": "Configurações de \"{name}\"", "en": "Settings for \"{name}\""}, # New
 
     "service_url_label": {"pt": "URL Base da API", "en": "API Base URL"},
     "service_url_select_option_other": {"pt": "Outro (digitar)", "en": "Other (type)"},
@@ -52,8 +52,7 @@ translations = {
     "prompt_area_header": {"pt": "⚡ Enviar Prompt para {count} modelo(s)", "en": "⚡ Send Prompt to {count} model(s)"},
     "prompt_area_label": {"pt": "Digite seu prompt aqui... (Ctrl+Enter para enviar)", "en": "Enter your prompt here... (Ctrl+Enter to send)"},
     "prompt_char_count_label": {"pt": "Caracteres: {count}", "en": "Characters: {count}"},
-    "default_prompt_value": {"pt": "Quem foi Patativa do Assaré e qual é a sua importância para a cultura do Nordeste brasileiro?", "en": "Who was Patativa do Assaré and what is his importance to the culture of Brazil's Northeast?"
-},
+    "default_prompt_value": {"pt": "Quem foi Patativa do Assaré e qual é a sua importância para a cultura do Nordeste brasileiro?", "en": "Who was Patativa do Assaré and what is his importance to the culture of Brazil's Northeast?"},
     "send_button": {"pt": "✉️ Enviar", "en": "✉️ Send"},
     "warning_empty_prompt": {"pt": "⚠️ Por favor, insira um prompt.", "en": "⚠️ Please enter a prompt."},
     "warning_no_active_models_configured": {"pt": "⚠️ Nenhum modelo ativo e configurado. Configure e ative modelos na barra lateral.", "en": "⚠️ No active and configured models. Configure and activate models in the sidebar."},
@@ -91,11 +90,76 @@ translations = {
     "inference_metrics_header": {"pt": "Métricas", "en": "Metrics"},
     "error_general_response_area": {"pt": "Erro: {msg}", "en": "Error: {msg}"},
     "nothing_to_display": {"pt": "Nada para exibir.", "en": "Nothing to display."},
-    "prompt_placeholder_no_active_model": {"pt": "⚠️ Nenhum modelo ativo", "en": "⚠️ No active model"}
+    "prompt_placeholder_no_active_model": {"pt": "⚠️ Nenhum modelo ativo", "en": "⚠️ No active model"},
+
+    # New translations for added sections
+    "how_to_operate_header": {"pt": "📖 Como Operar o Dashboard", "en": "📖 How to Operate the Dashboard"},
+    "how_to_operate_intro": {
+        "pt": "Siga estes passos para comparar LLMs:",
+        "en": "Follow these steps to compare LLMs:"
+    },
+    "how_to_operate_step1_config": {
+        "pt": "1. **Configurar Modelos (na barra lateral):**",
+        "en": "1. **Configure Models (in the sidebar):**"
+    },
+    "how_to_operate_step1_detail_add": {
+        "pt": "   - Clique em '➕ Adicionar Modelo' para adicionar um novo slot de modelo (até {max_models}).",
+        "en": "   - Click '➕ Add Model' to add a new model slot (up to {max_models})."
+    },
+    "how_to_operate_step1_detail_nickname": {
+        "pt": "   - Dê um **Nome (Apelido)** para fácil identificação.",
+        "en": "   - Provide a **Model Name (Nickname)** for easy identification."
+    },
+    "how_to_operate_step1_detail_url": {
+        "pt": "   - Expanda as 'Configurações' do modelo. Selecione ou insira a **URL Base da API** (ex: `https://api.openai.com/v1` para OpenAI, ou seu endpoint local como `http://localhost:11434/v1` para Ollama/LM Studio).",
+        "en": "   - Expand the model's 'Settings'. Select or enter the **API Base URL** (e.g., `https://api.openai.com/v1` for OpenAI, or your local endpoint like `http://localhost:11434/v1` for Ollama/LM Studio)."
+    },
+    "how_to_operate_step1_detail_auth": {
+        "pt": "   - Escolha o **Método de Autenticação**:",
+        "en": "   - Choose the **Authentication Method**:"
+    },
+    "how_to_operate_step1_detail_auth_apikey": {
+        "pt": "     - **Chave de API:** Insira sua chave. Para alguns endpoints locais (como Ollama), pode ser 'NA' ou qualquer valor se não for necessária.",
+        "en": "     - **API Key:** Enter your key. For some local endpoints (like Ollama), it can be 'NA' or any value if not required."
+    },
+    "how_to_operate_step1_detail_auth_oauth": {
+        "pt": "     - **OAuth:** Preencha Client ID, Client Secret, URL do Token e clique em 'Obter/Testar Token OAuth'.",
+        "en": "     - **OAuth:** Fill in Client ID, Client Secret, Token URL, and click 'Get/Test OAuth Token'."
+    },
+    "how_to_operate_step1_detail_model_api": {
+        "pt": "   - Especifique o **Nome do Modelo na API** (ex: `gpt-4`, `llama3`). Se a lista de modelos for carregada, você pode selecionar um. Caso contrário, ative 'Digitar nome do modelo da API manualmente' e insira.",
+        "en": "   - Specify the **API Model Name** (e.g., `gpt-4`, `llama3`). If the model list loads, you can select one. Otherwise, enable 'Manually type API model name' and enter it."
+    },
+    "how_to_operate_step1_detail_params": {
+        "pt": "   - Ajuste **Temperatura**, **Max Tokens** e **Top P** conforme necessário.",
+        "en": "   - Adjust **Temperature**, **Max Tokens**, and **Top P** as needed."
+    },
+    "how_to_operate_step2_activate": {
+        "pt": "2. **Ativar Modelos:** Use o botão de alternância (toggle ao lado do nome do modelo) para ativá-lo para comparação. Modelos ativos são indicados por '✅'.",
+        "en": "2. **Activate Models:** Use the toggle switch (next to the model name) to activate it for comparison. Active models are indicated by '✅'."
+    },
+    "how_to_operate_step3_prompt": {
+        "pt": "3. **Enviar Prompt:** Digite seu prompt na área principal e clique em '✉️ Enviar'.",
+        "en": "3. **Send Prompt:** Enter your prompt in the main area and click '✉️ Send'."
+    },
+    "how_to_operate_step4_results": {
+        "pt": "4. **Analisar Resultados:** As respostas de cada modelo ativo aparecerão lado a lado para comparação, incluindo métricas como tempo de inferência e uso de tokens.",
+        "en": "4. **Analyze Results:** Responses from each active model will appear side-by-side for comparison, including metrics like inference time and token usage."
+    },
+    "source_code_header": {"pt": "📦 Código Fonte", "en": "📦 Source Code"},
+    "source_code_text": {
+        "pt": "O código fonte desta aplicação está disponível no GitHub:",
+        "en": "The source code for this application is available on GitHub:"
+    },
+    "author_section_header": {"pt": "👤 Sobre o Autor", "en": "👤 About the Author"},
+    "author_name_label": {"pt": "Nome:", "en": "Name:"},
+    "author_email_label": {"pt": "Email:", "en": "Email:"},
+    "author_github_label": {"pt": "Perfil GitHub:", "en": "GitHub Profile:"},
+    "author_website_label": {"pt": "Website:", "en": "Website:"}
 }
 
 MAX_MODELS = 4
-DEFAULT_API_URLS = ["https://api.openai.com/v1", "http://localhost:11434/v1"]
+DEFAULT_API_URLS = ["https://api.openai.com/v1", "http://localhost:11434/v1"] # Ollama/LM Studio default
 
 if 'lang' not in st.session_state:
     st.session_state.lang = "pt"
@@ -104,7 +168,7 @@ def t(key, **kwargs):
     translation_map = translations.get(key, {})
     return translation_map.get(st.session_state.lang, f"[{key}_{st.session_state.lang} - MISSING]").format(**kwargs)
 
-st.set_page_config(layout="wide", page_title=t("page_title"))
+st.set_page_config(layout="wide", page_title=t("page_title"),page_icon = 'https://alisio.com.br/misc/images/testai_favicon.png')
 
 # --- Helper Functions --- (get_oauth_token, get_openai_compatible_models, query_openai_compatible são as mesmas da etapa anterior)
 def get_oauth_token(token_url, client_id, client_secret):
@@ -235,26 +299,24 @@ with st.sidebar:
     for idx, model_conf in enumerate(st.session_state.models):
         model_id = model_conf["id"]
         
-        # Container for each model's controls in the sidebar
-        model_container = st.container() # Removed border=True for cleaner look
+        model_container = st.container() 
         with model_container:
-            # Row for Name, Activation Toggle, and Remove Button
-            cols_top_controls = st.columns([0.6, 0.2, 0.2]) # Name | Toggle | Remove
+            cols_top_controls = st.columns([0.6, 0.2, 0.2])
             
             with cols_top_controls[0]:
                 model_conf["user_given_name"] = st.text_input(
                     t("model_user_given_name_label"), 
                     value=model_conf["user_given_name"], 
                     key=f"name_top_{model_id}",
-                    label_visibility="collapsed" # Label is visually provided by "Modelos de IA" header
+                    label_visibility="collapsed"
                 )
 
             with cols_top_controls[1]:
                 model_conf["active"] = st.toggle(
-                    "", # No direct label for the toggle itself
+                    "", 
                     value=model_conf["active"], 
                     key=f"active_top_{model_id}", 
-                    label_visibility="collapsed", # Visually indicated by icon or position
+                    label_visibility="collapsed", 
                     help=t("activate_model_toggle_help") + (" ✅" if model_conf["active"] else " ❌")
                 )
                 
@@ -262,17 +324,14 @@ with st.sidebar:
                 if st.button("🗑️", key=f"remove_top_{model_id}", help=t("remove_model_button_help"), use_container_width=True):
                     models_to_remove_ids.append(model_id)
             
-            # Expander for advanced settings
             expander_label = t("model_advanced_settings_expander", name=model_conf.get('user_given_name', f'Modelo {idx+1}'))
             with st.expander(expander_label):
-                # API Base URL with selectbox and custom input
                 url_options = DEFAULT_API_URLS + [t("service_url_select_option_other")]
                 current_url_in_use = model_conf.get("service_url", DEFAULT_API_URLS[0])
                 
-                # Determine the selection for the selectbox
                 if current_url_in_use in DEFAULT_API_URLS:
                     current_selection_for_box = current_url_in_use
-                else: # It's a custom URL
+                else: 
                     current_selection_for_box = t("service_url_select_option_other")
 
                 selected_option = st.selectbox(
@@ -293,16 +352,15 @@ with st.sidebar:
                     model_conf["service_url"] = model_conf["service_url_custom"]
                 else:
                     model_conf["service_url"] = selected_option
-                    model_conf["service_url_custom"] = "" # Clear custom if a default is chosen
-                model_conf["service_url_selection"] = selected_option # Store the selectbox choice
+                    model_conf["service_url_custom"] = "" 
+                model_conf["service_url_selection"] = selected_option 
 
-                # Authentication Method
                 model_conf["auth_method"] = st.radio(t("auth_method_label"), ["api_key", "oauth"],
                                                         index=0 if model_conf["auth_method"] == "api_key" else 1,
                                                         key=f"auth_method_expanded_{model_id}", horizontal=True)
                 if model_conf["auth_method"] == "api_key":
                     model_conf["api_key"] = st.text_input(t("api_key_label"), type="password", value=model_conf["api_key"], help=t("api_key_help"), key=f"apikey_expanded_{model_id}")
-                else: # OAuth
+                else: 
                     model_conf["oauth_client_id"] = st.text_input(t("client_id_label"), value=model_conf["oauth_client_id"], key=f"oauth_client_id_expanded_{model_id}")
                     model_conf["oauth_client_secret"] = st.text_input(t("client_secret_label"), type="password", value=model_conf["oauth_client_secret"], key=f"oauth_secret_expanded_{model_id}")
                     model_conf["oauth_token_url"] = st.text_input(t("token_url_label"), value=model_conf["oauth_token_url"], help=t("token_url_help"), key=f"oauth_token_url_expanded_{model_id}")
@@ -321,7 +379,6 @@ with st.sidebar:
                             model_conf["oauth_token_status"] = t("oauth_token_missing_creds")
                     st.caption(f"{t('oauth_token_status_label')} {model_conf['oauth_token_status']}")
                 
-                # Model Listing Logic
                 current_openai_auth_parts = [model_conf["service_url"]]
                 if model_conf["auth_method"] == "api_key": current_openai_auth_parts.append(model_conf["api_key"])
                 else:
@@ -352,7 +409,6 @@ with st.sidebar:
                             model_conf["available_models_for_endpoint"] = []
                             model_conf["manual_model_name_input"] = True
                 
-                # API Model Name Input
                 model_conf["manual_model_name_input"] = st.checkbox(t("manual_model_name_toggle"), value=model_conf["manual_model_name_input"], key=f"openai_manual_toggle_expanded_{model_id}")
                 if not model_conf["manual_model_name_input"] and model_conf.get("available_models_for_endpoint"):
                     try: current_selection_idx = model_conf["available_models_for_endpoint"].index(model_conf["model_identifier"])
@@ -361,15 +417,59 @@ with st.sidebar:
                 else:
                     model_conf["model_identifier"] = st.text_input(t("model_identifier_label_openai"), value=model_conf["model_identifier"], help=t("model_identifier_help_text_openai"), key=f"openai_model_text_expanded_{model_id}")
                 
-                # Inference Parameters
                 model_conf["temperature"] = st.slider(t("temperature_label"), 0.0, 2.0, model_conf["temperature"], 0.05, key=f"temp_expanded_{model_id}")
                 model_conf["max_tokens"] = st.number_input(t("max_tokens_label"), 50, 16384, model_conf["max_tokens"], 50, key=f"max_tokens_expanded_{model_id}")
                 model_conf["top_p"] = st.slider(t("top_p_label"), 0.0, 1.0, model_conf["top_p"], 0.05, key=f"top_p_expanded_{model_id}")
-        st.markdown("---") # Separator between models
+        st.markdown("---") 
     
     if models_to_remove_ids:
         st.session_state.models = [m for m in st.session_state.models if m["id"] not in models_to_remove_ids]
         st.rerun()
+
+    # --- NEW SECTIONS ADDED HERE ---
+    st.sidebar.markdown("---")
+    # How to Operate Section
+    st.sidebar.subheader(t("how_to_operate_header"))
+    how_to_operate_content = f"""
+{t("how_to_operate_intro")}
+
+{t("how_to_operate_step1_config")}
+{t("how_to_operate_step1_detail_add", max_models=MAX_MODELS)}
+{t("how_to_operate_step1_detail_nickname")}
+{t("how_to_operate_step1_detail_url")}
+{t("how_to_operate_step1_detail_auth")}
+{t("how_to_operate_step1_detail_auth_apikey")}
+{t("how_to_operate_step1_detail_auth_oauth")}
+{t("how_to_operate_step1_detail_model_api")}
+{t("how_to_operate_step1_detail_params")}
+
+{t("how_to_operate_step2_activate")}
+
+{t("how_to_operate_step3_prompt")}
+
+{t("how_to_operate_step4_results")}
+"""
+    st.sidebar.markdown(how_to_operate_content)
+
+    st.sidebar.markdown("---")
+    # Source Code Section
+    st.sidebar.subheader(t("source_code_header"))
+    st.sidebar.markdown(f"{t('source_code_text')} [TestaAI](https://github.com/alisio/Prompt-Playground)")
+
+    st.sidebar.markdown("---")
+    # Author Section
+    st.sidebar.subheader(t("author_section_header"))
+    author_name = "Antonio Alisio de Meneses Cordeiro"
+    author_email = "alisio.meneses@gmail.com"
+    author_github_user = "alisio"
+    author_github_url = f"http://github.com/{author_github_user}"
+    author_website_url = "http://www.alisio.com.br" # Ensure http/https for proper linking
+
+    st.sidebar.markdown(f"**{t('author_name_label')}** {author_name}")
+    st.sidebar.markdown(f"**{t('author_email_label')}** [{author_email}](mailto:{author_email})")
+    st.sidebar.markdown(f"**{t('author_github_label')}** [{author_github_user}]({author_github_url})")
+    st.sidebar.markdown(f"**{t('author_website_label')}** [{author_website_url.replace('http://','').replace('https://','').rstrip('/')}]({author_website_url})")
+
 
 # --- Main Area ---
 active_models_list = [m for m in st.session_state.models if m.get("active")]
@@ -465,14 +565,12 @@ show_results_header = any(m.get("response_data") for m in active_models_for_disp
 
 if num_active_for_display > 0:
     if show_results_header:
-        # st.subheader(t("comparison_results_header")) # Subheader é opcional se o layout for claro
         cols_responses = st.columns(num_active_for_display)
         
         for col_idx, model_conf_display in enumerate(active_models_for_display):
             resp_detail = model_conf_display.get("response_data")
             
             with cols_responses[col_idx]:
-                # Usar st.container com borda para cada card de resposta, como na imagem de referência
                 with st.container(border=True):
                     st.markdown(f"##### {t('model_display_name_header', user_name=model_conf_display['user_given_name'])}")
                     st.caption(t("model_tech_name_subheader", tech_name=model_conf_display['model_identifier']))
@@ -497,18 +595,18 @@ if num_active_for_display > 0:
                             st.error(response_text_display if response_text_display else t("error_general_response_area", msg=t("not_applicable_abbrev")), icon="🚨")
                         else:
                             st.text_area(t("response_from_model_label"), response_text_display, height=250, key=f"response_output_{model_conf_display['id']}", disabled=True, label_visibility="collapsed")
-                    else: # Model is active, but no response data for it yet (e.g., before first "Send")
-                        st.info(t("info_click_send")) # This state might be brief or not often seen if "Send" populates all active.
-    else: # Active models exist, but no response data for any of them (e.g., fresh start)
+                    else: 
+                        st.info(t("info_click_send")) 
+    else: 
         placeholder_container_main = st.container(border=True)
         with placeholder_container_main:
              st.markdown(f"<div style='text-align: center; padding: 40px;'>{t('info_placeholder_no_results')}</div>", unsafe_allow_html=True)
 
-elif not st.session_state.models: # No models configured at all
+elif not st.session_state.models: 
     placeholder_container_main = st.container(border=True)
     with placeholder_container_main:
         st.markdown(f"<div style='text-align: center; padding: 40px;'>{t('info_placeholder_no_results')}</div>", unsafe_allow_html=True)
-else: # Models might exist but none are active
+else: 
     placeholder_container_main = st.container(border=True)
     with placeholder_container_main:
         st.markdown(f"<div style='text-align: center; padding: 40px;'>{t('warning_no_active_models_configured')}</div>", unsafe_allow_html=True)
