@@ -1,447 +1,112 @@
 import streamlit as st
 import openai
-import ollama
-import json # Para tratar possíveis erros de JSON em respostas
-import time # Para medir o tempo de inferência
-import requests # Para chamadas OAuth
+import json
+import time
+import requests
+import uuid # For unique keys for models
 
-# --- Language Configuration ---
+# --- Language Configuration (updated) ---
 translations = {
-    "page_title": {
-        "pt": "Prompt-Playground: Comparador de Prompts LLM",
-        "en": "Prompt-Playground: LLM Prompt Comparator"
-    },
-    "app_title": {
-        "pt": "Prompt-Playground",
-        "en": "Prompt-Playground"
-    },
-    "app_subtitle": {
-        "pt": "Desenvolva e compare prompts em diferentes modelos e endpoints LLM.",
-        "en": "Develop and compare prompts across different LLM models and endpoints."
-    },
-    "general_settings": {
-        "pt": "Configurações Gerais",
-        "en": "General Settings"
-    },
-    "credentials_endpoints": {
-        "pt": "Credenciais e Endpoints",
-        "en": "Credentials and Endpoints"
-    },
-    "ollama_base_url": {
-        "pt": "Ollama Base URL",
-        "en": "Ollama Base URL"
-    },
-    "openai_auth_method_label": {
-        "pt": "Método de Autenticação OpenAI-compatível",
-        "en": "OpenAI-compatible Authentication Method"
-    },
-    "api_key_option": {
-        "pt": "Chave de API",
-        "en": "API Key"
-    },
-    "oauth_option": {
-        "pt": "OAuth (Client Credentials)",
-        "en": "OAuth (Client Credentials)"
-    },
-    "openai_api_key": {
-        "pt": "Chave API OpenAI-compatível",
-        "en": "OpenAI-compatible API Key"
-    },
-    "openai_api_key_help": {
-        "pt": "Pode ser 'NA' ou qualquer string se o endpoint não exigir chave e o método for Chave API.",
-        "en": "Can be 'NA' or any string if the endpoint doesn't require a key and method is API Key."
-    },
-    "openai_client_id_label": {
-        "pt": "Client ID (OAuth)",
-        "en": "Client ID (OAuth)"
-    },
-    "openai_client_secret_label": {
-        "pt": "Client Secret (OAuth)",
-        "en": "Client Secret (OAuth)"
-    },
-    "openai_token_url_label": {
-        "pt": "URL do Token (OAuth)",
-        "en": "Token URL (OAuth)"
-    },
-    "openai_token_url_help": {
-        "pt": "Ex: https://seu-servidor-auth.com/oauth/token",
-        "en": "Ex: https://your-auth-server.com/oauth/token"
-    },
-    "get_oauth_token_button": {
-        "pt": "Obter/Testar Token OAuth",
-        "en": "Get/Test OAuth Token"
-    },
-    "oauth_token_status_label": {
-        "pt": "Status do Token OAuth:",
-        "en": "OAuth Token Status:"
-    },
-    "oauth_token_success": {
-        "pt": "Token OAuth obtido com sucesso!",
-        "en": "OAuth Token obtained successfully!"
-    },
-    "oauth_token_missing_creds": {
-        "pt": "Preencha Client ID, Client Secret e URL do Token.",
-        "en": "Please fill in Client ID, Client Secret, and Token URL."
-    },
-    "oauth_token_error_fetching": {
-        "pt": "Erro ao obter token OAuth: {error}",
-        "en": "Error fetching OAuth token: {error}"
-    },
-    "oauth_token_error_auto_fetching": {
-        "pt": "Falha ao obter token OAuth automaticamente: {error}",
-        "en": "Failed to automatically fetch OAuth token: {error}"
-    },
-    "error_oauth_token_unavailable": {
-        "pt": "Token OAuth não disponível ou inválido. Verifique as credenciais OAuth e tente obter o token na barra lateral, ou verifique os logs se a obtenção automática falhou.",
-        "en": "OAuth token not available or invalid. Check OAuth credentials and try fetching token in sidebar, or check logs if automatic fetch failed."
-    },
-    "openai_base_url": {
-        "pt": "URL Base OpenAI-compatível",
-        "en": "OpenAI-compatible Base URL"
-    },
-    "openai_base_url_help": {
-        "pt": "Ex: https://api.openai.com/v1 ou URL do seu endpoint privado",
-        "en": "Ex: https://api.openai.com/v1 or your private endpoint URL"
-    },
-    "inference_parameters": {
-        "pt": "Parâmetros de Inferência",
-        "en": "Inference Parameters"
-    },
-    "temperature": {
-        "pt": "Temperatura",
-        "en": "Temperature"
-    },
-    "max_tokens": {
-        "pt": "Max Tokens",
-        "en": "Max Tokens"
-    },
-    "top_p": {
-        "pt": "Top P",
-        "en": "Top P"
-    },
-    "compare_models": {
-        "pt": "Comparar Modelos:",
-        "en": "Compare Models:"
-    },
-    "model_config_header": {
-        "pt": "Modelo {number}",
-        "en": "Model {number}"
-    },
-    "activate_model": {
-        "pt": "Ativar Modelo {number}",
-        "en": "Activate Model {number}"
-    },
-    "endpoint_type": {
-        "pt": "Tipo de Endpoint (Modelo {number})",
-        "en": "Endpoint Type (Model {number})"
-    },
-    "ollama_model_select": {
-        "pt": "Modelo Ollama (Modelo {number})",
-        "en": "Ollama Model (Model {number})"
-    },
-    "ollama_model_text": {
-        "pt": "Nome do Modelo Ollama (Modelo {number})",
-        "en": "Ollama Model Name (Model {number})"
-    },
-    "ollama_model_text_help": {
-        "pt": "Ex: llama3:latest. Modelos não puderam ser listados.",
-        "en": "Ex: llama3:latest. Models could not be listed."
-    },
-    "openai_model_select": {
-        "pt": "Modelo OpenAI-compatível (Modelo {number})",
-        "en": "OpenAI-compatible Model (Model {number})"
-    },
-    "openai_model_select_help": {
-        "pt": "Selecione ou digite o nome do modelo se não estiver na lista.",
-        "en": "Select or type the model name if not in the list."
-    },
-    "openai_type_manual_toggle": {
-        "pt": "Digitar nome do modelo OpenAI-compatível manualmente (Modelo {number})",
-        "en": "Manually type OpenAI-compatible model name (Model {number})"
-    },
-    "openai_model_text": {
-        "pt": "Nome do Modelo OpenAI-compatível (Modelo {number})",
-        "en": "OpenAI-compatible Model Name (Model {number})"
-    },
-    "openai_model_text_help": {
-        "pt": "Ex: gpt-4, gpt-3.5-turbo, ou nome do seu modelo privado",
-        "en": "Ex: gpt-4, gpt-3.5-turbo, or your private model name"
-    },
-    "openai_model_text_alt_help": {
-        "pt": "Ex: gpt-4, gpt-3.5-turbo, ou nome do seu modelo privado. Modelos não puderam ser listados.",
-        "en": "Ex: gpt-4, gpt-3.5-turbo, or your private model name. Models could not be listed."
-    },
-    "prompt_area_header": {
-        "pt": "Prompt",
-        "en": "Prompt"
-    },
-    "prompt_area_label": {
-        "pt": "Digite seu prompt aqui:",
-        "en": "Enter your prompt here:"
-    },
-    "default_prompt_value": {
-        "pt": "Quem foi Patativa do Assaré e qual a sua importância para a cultura do Nordeste do Brasil?",
-        "en": "Who was Patativa do Assaré and what is his importance to the culture of Northeastern Brazil?"
-    },
-    "generate_button": {
-        "pt": "Gerar Respostas",
-        "en": "Generate Responses"
-    },
-    "warning_empty_prompt": {
-        "pt": "Por favor, insira um prompt.",
-        "en": "Please enter a prompt."
-    },
-    "spinner_generating": {
-        "pt": "Gerando respostas...",
-        "en": "Generating responses..."
-    },
-    "spinner_fetching_oauth_token": {
-        "pt": "Obtendo token OAuth...",
-        "en": "Fetching OAuth token..."
-    },
-    "error_model_not_specified": {
-        "pt": "Modelo {number}: Nome do modelo não especificado.",
-        "en": "Model {number}: Model name not specified."
-    },
-    "error_ollama_url_not_set": {
-        "pt": "Modelo {number} (Ollama): URL base do Ollama não configurada.",
-        "en": "Model {number} (Ollama): Ollama base URL not configured."
-    },
-    "error_openai_base_url_not_set": {
-        "pt": "Modelo {number} (OpenAI-compatível): URL Base não configurada.",
-        "en": "Model {number} (OpenAI-compatible): Base URL not configured."
-    },
-    "error_openai_apikey_not_set": {
-        "pt": "Modelo {number} (OpenAI-compatível/API Key): Chave API não configurada.",
-        "en": "Model {number} (OpenAI-compatible/API Key): API Key not configured."
-    },
-    "error_openai_oauth_creds_not_set_for_auto_fetch": {
-        "pt": "Modelo {number} (OpenAI-compatível/OAuth): Client ID, Client Secret ou URL do Token não configurados para obtenção automática de token.",
-        "en": "Model {number} (OpenAI-compatible/OAuth): Client ID, Client Secret, or Token URL not configured for automatic token fetching."
-    },
-    "error_creating_openai_client_api_key": {
-        "pt": "Modelo {number} (OpenAI-compatível/API Key): Erro ao criar cliente OpenAI: {e}",
-        "en": "Model {number} (OpenAI-compatible/API Key): Error creating OpenAI client: {e}"
-    },
-    "error_creating_openai_client_oauth": {
-        "pt": "Modelo {number} (OpenAI-compatível/OAuth): Erro ao criar cliente OpenAI: {e}",
-        "en": "Model {number} (OpenAI-compatible/OAuth): Error creating OpenAI client: {e}"
-    },
-    "success_responses_generated": {
-        "pt": "Respostas geradas!",
-        "en": "Responses generated!"
-    },
-    "comparison_results_header": {
-        "pt": "Resultados da Comparação",
-        "en": "Comparison Results"
-    },
-    "model_display_name_header": {
-        "pt": "Modelo {number}: {name}",
-        "en": "Model {number}: {name}"
-    },
-    "model_not_configured": {
-        "pt": "Modelo {number} (Não Configurado)",
-        "en": "Model {number} (Not Configured)"
-    },
-    "model_endpoint_type_display": {
-        "pt": "Modelo {number} ({endpoint_type})",
-        "en": "Model {number} ({endpoint_type})"
-    },
-    "endpoint_label": {
-        "pt": "Endpoint:",
-        "en": "Endpoint:"
-    },
-    "not_applicable_abbrev": {
-        "pt": "N/A",
-        "en": "N/A"
-    },
-    "parameters_used_expander": {
-        "pt": "Parâmetros Usados",
-        "en": "Parameters Used"
-    },
-    "parameters_caption": {
-        "pt": "Temp: {temp}, Max Tokens: {max_tokens}, Top P: {top_p}",
-        "en": "Temp: {temp}, Max Tokens: {max_tokens}, Top P: {top_p}"
-    },
-    "response_from_model_label": {
-        "pt": "Resposta de {model_name}",
-        "en": "Response from {model_name}"
-    },
-    "info_no_active_models": {
-        "pt": "Nenhum modelo ativo para exibir resultados. Configure e ative modelos na barra lateral.",
-        "en": "No active models to display results. Configure and activate models in the sidebar."
-    },
-    "info_click_generate": {
-        "pt": "Clique em 'Gerar Respostas' após configurar os modelos e inserir um prompt.",
-        "en": "Click 'Generate Responses' after configuring models and entering a prompt."
-    },
-    "how_to_use_header": {
-        "pt": "Como usar:",
-        "en": "How to use:"
-    },
-    "how_to_use_content": {
-        "pt": """
-1.  Configure as URLs e credenciais na seção "Credenciais e Endpoints".
-    *   Para OpenAI-compatível: Escolha o método (Chave API ou OAuth).
-    *   Se OAuth: Preencha Client ID, Client Secret e URL do Token. O token será obtido automaticamente ao gerar respostas. Use "Obter/Testar Token OAuth" para verificar as credenciais.
-2.  Escolha quantos modelos comparar (1 a 3).
-3.  Para cada modelo:
-    * Ative-o.
-    * Selecione o tipo de endpoint.
-    * Escolha/digite o nome do modelo.
-4.  Digite seu prompt na área principal.
-5.  Clique em "Gerar Respostas".
-""",
-        "en": """
-1.  Configure URLs and credentials in the "Credentials and Endpoints" section.
-    *   For OpenAI-compatible: Choose method (API Key or OAuth).
-    *   If OAuth: Fill in Client ID, Client Secret, and Token URL. The token will be fetched automatically when generating responses. Use "Get/Test OAuth Token" to verify credentials.
-2.  Choose how many models to compare (1 to 3).
-3.  For each model:
-    * Activate it.
-    * Select the endpoint type.
-    * Choose/enter the model name.
-4.  Enter your prompt in the main area.
-5.  Click "Generate Responses".
-"""
-    },
-    "error_listing_ollama_models": {
-        "pt": "Ollama ({base_url}): Erro ao listar modelos: {e}",
-        "en": "Ollama ({base_url}): Error listing models: {e}"
-    },
-    "error_querying_ollama": {
-        "pt": "Erro ao consultar Ollama ({model_name}): {e}",
-        "en": "Error querying Ollama ({model_name}): {e}"
-    },
-    "fetching_models_from": {
-        "pt": "Buscando modelos de {base_url}...",
-        "en": "Fetching models from {base_url}..."
-    },
-    "error_openai_connection": {
-        "pt": "Erro de conexão com API OpenAI-compatível ({model_name}): {e}",
-        "en": "OpenAI-compatible API connection error ({model_name}): {e}"
-    },
-    "error_openai_auth_apikey": {
-        "pt": "Erro de autenticação com API OpenAI-compatível ({model_name}): Chave inválida ou não fornecida? {e}",
-        "en": "OpenAI-compatible API authentication error ({model_name}): Invalid or missing key? {e}"
-    },
-    "error_openai_auth_oauth": {
-        "pt": "Erro de autenticação com API OpenAI-compatível ({model_name}) via OAuth: Token inválido, expirado ou permissões insuficientes? {e}",
-        "en": "OpenAI-compatible API authentication error ({model_name}) via OAuth: Invalid, expired token, or insufficient permissions? {e}"
-    },
-    "error_openai_ratelimit": {
-        "pt": "Erro de limite de taxa com API OpenAI-compatível ({model_name}): {e}",
-        "en": "OpenAI-compatible API rate limit error ({model_name}): {e}"
-    },
-    "error_openai_notfound": {
-        "pt": "Erro: Modelo '{model_name}' não encontrado no endpoint '{base_url}'. Verifique o nome. {e}",
-        "en": "Error: Model '{model_name}' not found at endpoint '{base_url}'. Check the name. {e}"
-    },
-    "error_querying_openai_api": {
-        "pt": "Erro ao consultar API OpenAI-compatível ({model_name}): {msg}",
-        "en": "Error querying OpenAI-compatible API ({model_name}): {msg}"
-    },
-    "language": {
-        "pt": "Idioma",
-        "en": "Language"
-    },
-    "inference_time_label": {
-        "pt": "Tempo de Inferência",
-        "en": "Inference Time"
-    },
-    "input_tokens_label": {
-        "pt": "Tokens de Entrada",
-        "en": "Input Tokens"
-    },
-    "output_tokens_label": {
-        "pt": "Tokens de Saída",
-        "en": "Output Tokens"
-    },
-    "tokens_unit": {
-        "pt": "tokens",
-        "en": "tokens"
-    },
-    "seconds_unit_short": {
-        "pt": "s",
-        "en": "s"
-    },
-    "inference_metrics_header": {
-        "pt": "Métricas de Inferência",
-        "en": "Inference Metrics"
-    },
-    "sidebar_openai_section_header": {
-        "pt": "Endpoint OpenAI-compatível",
-        "en": "OpenAI-compatible Endpoint"
-    }
+    "page_title": {"pt": "TestaAI", "en": "TestaAI"},
+    "app_header_title": {"pt": "🧪 TestaAI", "en": "🧪 TestaAI"},
+    "app_subtitle": {"pt": "Seu Playground para Experimentos com LLMs", "en": "Your Playground for LLM Experiments"},
+
+    "models_active_counter": {"pt": "Modelo(s) Ativo(s)", "en": "Active Model(s)"},
+    "comparisons_run_counter": {"pt": "Comparações", "en": "Comparisons"},
+
+    "sidebar_configurations_header": {"pt": "⚙️ Configurações", "en": "⚙️ Configurations"},
+    "language": {"pt": "Idioma", "en": "Language"},
+    "ai_models_header": {"pt": "Modelos de IA (OpenAI-compatível)", "en": "AI Models (OpenAI-compatible)"},
+    "add_model_button": {"pt": "➕ Adicionar Modelo", "en": "➕ Add Model"},
+    "max_models_reached": {"pt": "Máximo de {max} modelos atingido.", "en": "Maximum of {max} models reached."},
+    "model_user_given_name_label": {"pt": "Nome do Modelo (Apelido)", "en": "Model Name (Nickname)"}, # Label for input
+    "activate_model_toggle_help": {"pt": "Ativar/Desativar este modelo", "en": "Activate/Deactivate this model"}, # Help for toggle
+    "remove_model_button_help": {"pt": "Remover este modelo", "en": "Remove this model"}, # Help for button
+    "model_advanced_settings_expander": {"pt": "Configurações Avançadas de \"{name}\"", "en": "Advanced Settings for \"{name}\""}, # New
+
+    "service_url_label": {"pt": "URL Base da API", "en": "API Base URL"},
+    "service_url_select_option_other": {"pt": "Outro (digitar)", "en": "Other (type)"},
+    "service_url_custom_label": {"pt": "URL Base da API (Personalizada)", "en": "API Base URL (Custom)"},
+    "service_url_help_openai": {"pt": "Ex: https://api.openai.com/v1 ou URL do seu endpoint privado", "en": "Ex: https://api.openai.com/v1 or your private endpoint URL"},
+    "auth_method_label": {"pt": "Método de Autenticação", "en": "Authentication Method"},
+    "api_key_option": {"pt": "Chave de API", "en": "API Key"},
+    "oauth_option": {"pt": "OAuth (Client Credentials)", "en": "OAuth (Client Credentials)"},
+    "api_key_label": {"pt": "Chave API", "en": "API Key"},
+    "api_key_help": {"pt": "Pode ser 'NA' se o endpoint não exigir chave e o método for Chave API.", "en": "Can be 'NA' if the endpoint doesn't require a key and method is API Key."},
+    "client_id_label": {"pt": "Client ID (OAuth)", "en": "Client ID (OAuth)"},
+    "client_secret_label": {"pt": "Client Secret (OAuth)", "en": "Client Secret (OAuth)"},
+    "token_url_label": {"pt": "URL do Token (OAuth)", "en": "Token URL (OAuth)"},
+    "token_url_help": {"pt": "Ex: https://seu-servidor-auth.com/oauth/token", "en": "Ex: https://your-auth-server.com/oauth/token"},
+    "get_oauth_token_button": {"pt": "Obter/Testar Token OAuth", "en": "Get/Test OAuth Token"},
+    "oauth_token_status_label": {"pt": "Status do Token OAuth:", "en": "OAuth Token Status:"},
+    "oauth_token_success": {"pt": "Token OAuth obtido com sucesso!", "en": "OAuth Token obtained successfully!"},
+    "oauth_token_missing_creds": {"pt": "Preencha Client ID, Client Secret e URL do Token.", "en": "Please fill in Client ID, Client Secret, and Token URL."},
+    "oauth_token_error_fetching": {"pt": "Erro ao obter token OAuth: {error}", "en": "Error fetching OAuth token: {error}"},
+    "model_identifier_label_openai": {"pt": "Nome do Modelo na API", "en": "API Model Name"},
+    "model_identifier_help_select": {"pt": "Selecione ou digite o nome do modelo se não estiver na lista.", "en": "Select or type the model name if not in the list."},
+    "model_identifier_help_text_openai": {"pt": "Ex: gpt-4, gpt-3.5-turbo. Modelos não puderam ser listados ou digitação manual ativa.", "en": "Ex: gpt-4, gpt-3.5-turbo. Models could not be listed or manual input active."},
+    "manual_model_name_toggle": {"pt": "Digitar nome do modelo da API manualmente", "en": "Manually type API model name"},
+    "temperature_label": {"pt": "Temperatura", "en": "Temperature"},
+    "max_tokens_label": {"pt": "Max Tokens", "en": "Max Tokens"},
+    "top_p_label": {"pt": "Top P", "en": "Top P"},
+    "prompt_area_header": {"pt": "⚡ Enviar Prompt para {count} modelo(s)", "en": "⚡ Send Prompt to {count} model(s)"},
+    "prompt_area_label": {"pt": "Digite seu prompt aqui... (Ctrl+Enter para enviar)", "en": "Enter your prompt here... (Ctrl+Enter to send)"},
+    "prompt_char_count_label": {"pt": "Caracteres: {count}", "en": "Characters: {count}"},
+    "default_prompt_value": {"pt": "Quem foi Patativa do Assaré e qual é a sua importância para a cultura do Nordeste brasileiro?", "en": "Who was Patativa do Assaré and what is his importance to the culture of Brazil's Northeast?"
+},
+    "send_button": {"pt": "✉️ Enviar", "en": "✉️ Send"},
+    "warning_empty_prompt": {"pt": "⚠️ Por favor, insira um prompt.", "en": "⚠️ Please enter a prompt."},
+    "warning_no_active_models_configured": {"pt": "⚠️ Nenhum modelo ativo e configurado. Configure e ative modelos na barra lateral.", "en": "⚠️ No active and configured models. Configure and activate models in the sidebar."},
+    "spinner_generating": {"pt": "Gerando respostas...", "en": "Generating responses..."},
+    "spinner_fetching_oauth_token": {"pt": "Obtendo token OAuth...", "en": "Fetching OAuth token..."},
+    "error_model_not_specified": {"pt": "{model_name}: Nome do modelo na API não especificado.", "en": "{model_name}: API Model name not specified."},
+    "error_service_url_not_set": {"pt": "{model_name}: URL Base da API não configurada ou inválida.", "en": "{model_name}: API Base URL not configured or invalid."},
+    "error_api_key_not_set": {"pt": "{model_name} (API Key): Chave API não configurada.", "en": "{model_name} (API Key): API Key not configured."},
+    "error_oauth_creds_not_set_for_auto_fetch": {"pt": "{model_name} (OAuth): Client ID, Client Secret ou URL do Token não configurados.", "en": "{model_name} (OAuth): Client ID, Client Secret, or Token URL not configured."},
+    "error_oauth_token_unavailable": {"pt": "{model_name} (OAuth): Token OAuth não disponível ou inválido.", "en": "{model_name} (OAuth): OAuth token not available or invalid."},
+    "error_creating_openai_client_api_key": {"pt": "{model_name} (API Key): Erro ao criar cliente OpenAI: {e}", "en": "{model_name} (API Key): Error creating OpenAI client: {e}"},
+    "error_creating_openai_client_oauth": {"pt": "{model_name} (OAuth): Erro ao criar cliente OpenAI: {e}", "en": "{model_name} (OAuth): Error creating OpenAI client: {e}"},
+    "success_responses_generated": {"pt": "✅ Respostas geradas!", "en": "✅ Responses generated!"},
+    "comparison_results_header": {"pt": "Resultados da Comparação", "en": "Comparison Results"},
+    "model_display_name_header": {"pt": "{user_name}", "en": "{user_name}"},
+    "model_tech_name_subheader": {"pt": "Modelo API: {tech_name}", "en": "API Model: {tech_name}"},
+    "not_applicable_abbrev": {"pt": "N/A", "en": "N/A"},
+    "parameters_used_expander": {"pt": "Parâmetros Usados", "en": "Parameters Used"},
+    "parameters_caption": {"pt": "Temp: {temp}, Max Tokens: {max_tokens}, Top P: {top_p}", "en": "Temp: {temp}, Max Tokens: {max_tokens}, Top P: {top_p}"},
+    "response_from_model_label": {"pt": "Resposta:", "en": "Response:"},
+    "info_placeholder_no_results": {"pt": "⚡ Pronto para comparar modelos\nConfigure os modelos e envie um prompt para começar", "en": "⚡ Ready to compare models\nConfigure the models and send a prompt to get started"},
+    "info_click_send": {"pt": "Clique em 'Enviar' após configurar os modelos e inserir um prompt.", "en": "Click 'Send' after configuring models and entering a prompt."},
+    "fetching_models_from": {"pt": "Buscando modelos de {base_url}...", "en": "Fetching models from {base_url}..."},
+    "error_openai_connection": {"pt": "Erro de conexão com API ({model_name}): {e}", "en": "API connection error ({model_name}): {e}"},
+    "error_openai_auth_apikey": {"pt": "Erro de autenticação API ({model_name}): Chave inválida/faltando? {e}", "en": "API authentication error ({model_name}): Invalid/missing key? {e}"},
+    "error_openai_auth_oauth": {"pt": "Erro de autenticação API ({model_name}) via OAuth: Token inválido/expirado? {e}", "en": "API authentication error ({model_name}) via OAuth: Invalid/expired token? {e}"},
+    "error_openai_ratelimit": {"pt": "Erro de limite de taxa API ({model_name}): {e}", "en": "API rate limit error ({model_name}): {e}"},
+    "error_openai_notfound": {"pt": "Erro: Modelo '{model_id}' não encontrado em '{base_url}'. {e}", "en": "Error: Model '{model_id}' not found at '{base_url}'. {e}"},
+    "error_querying_openai_api": {"pt": "Erro ao consultar API ({model_name}): {msg}", "en": "Error querying API ({model_name}): {msg}"},
+    "inference_time_label": {"pt": "Tempo", "en": "Time"},
+    "input_tokens_label": {"pt": "Entrada", "en": "Input"},
+    "output_tokens_label": {"pt": "Saída", "en": "Output"},
+    "tokens_unit": {"pt": "tokens", "en": "tokens"},
+    "seconds_unit_short": {"pt": "s", "en": "s"},
+    "inference_metrics_header": {"pt": "Métricas", "en": "Metrics"},
+    "error_general_response_area": {"pt": "Erro: {msg}", "en": "Error: {msg}"},
+    "nothing_to_display": {"pt": "Nada para exibir.", "en": "Nothing to display."},
+    "prompt_placeholder_no_active_model": {"pt": "⚠️ Nenhum modelo ativo", "en": "⚠️ No active model"}
 }
 
+MAX_MODELS = 4
+DEFAULT_API_URLS = ["https://api.openai.com/v1", "http://localhost:11434/v1"]
 
 if 'lang' not in st.session_state:
-    st.session_state.lang = "pt" # Default language
+    st.session_state.lang = "pt"
 
-def t(key):
-    # Fallback for missing keys during development
+def t(key, **kwargs):
     translation_map = translations.get(key, {})
-    return translation_map.get(st.session_state.lang, f"[{key}_{st.session_state.lang} - MISSING]")
+    return translation_map.get(st.session_state.lang, f"[{key}_{st.session_state.lang} - MISSING]").format(**kwargs)
 
-
-# --- Page Configuration ---
 st.set_page_config(layout="wide", page_title=t("page_title"))
 
-# --- Sidebar Language Selector ---
-with st.sidebar:
-    selected_lang_display = "Português" if st.session_state.lang == "pt" else "English"
-    lang_options = {"Português": "pt", "English": "en"}
-    
-    def format_func_lang(option):
-        return option
-
-    new_lang_display = st.selectbox(
-        t("language"),
-        options=list(lang_options.keys()),
-        index=list(lang_options.values()).index(st.session_state.lang),
-        format_func=format_func_lang,
-        key="lang_selector_display_widget"
-    )
-    new_lang_code = lang_options[new_lang_display]
-
-    if st.session_state.lang != new_lang_code:
-        st.session_state.lang = new_lang_code
-        st.rerun()
-
-# --- Helper Functions for API Calls ---
-
-def get_ollama_models(base_url):
-    try:
-        client = ollama.Client(host=base_url)
-        models_info = client.list()
-        return [model['model'] for model in models_info['models']]
-    except Exception as e:
-        st.sidebar.error(t("error_listing_ollama_models").format(base_url=base_url, e=str(e)))
-        return []
-
-def query_ollama(base_url, model_name, prompt, temperature, max_tokens, top_p):
-    start_time = time.time()
-    try:
-        client = ollama.Client(host=base_url)
-        response = client.chat(
-            model=model_name,
-            messages=[{'role': 'user', 'content': prompt}],
-            options={'temperature': temperature, 'num_predict': max_tokens, 'top_p': top_p}
-        )
-        end_time = time.time()
-        return {
-            "text": response['message']['content'], "time": end_time - start_time,
-            "in_tokens": response.get('prompt_eval_count'), "out_tokens": response.get('eval_count'),
-            "raw_response": response
-        }
-    except Exception as e:
-        return {
-            "text": t("error_querying_ollama").format(model_name=model_name, e=str(e)),
-            "time": time.time() - start_time, "in_tokens": None, "out_tokens": None,
-            "raw_response": {"error": str(e)}
-        }
-
+# --- Helper Functions --- (get_oauth_token, get_openai_compatible_models, query_openai_compatible são as mesmas da etapa anterior)
 def get_oauth_token(token_url, client_id, client_secret):
     try:
         response = requests.post(
@@ -467,14 +132,15 @@ def get_oauth_token(token_url, client_id, client_secret):
         return None, f"JSONDecodeError: {str(e)}. Response text: {resp_text[:200]}"
     except Exception as e: return None, f"Generic error: {str(e)}"
 
-def get_openai_compatible_models(client: openai.OpenAI):
+def get_openai_compatible_models(client: openai.OpenAI, model_config_id):
     try:
         return [model.id for model in client.models.list().data]
-    except Exception: return []
+    except Exception as e:
+        st.toast(f"Modelo ID {model_config_id}: Erro ao listar modelos OpenAI: {str(e)[:100]}", icon="⚠️")
+        return []
 
-def query_openai_compatible(client: openai.OpenAI, model_name: str, prompt: str, temperature: float, max_tokens: int, top_p: float):
+def query_openai_compatible(client: openai.OpenAI, model_name: str, prompt: str, temperature: float, max_tokens: int, top_p: float, model_user_name: str, auth_method: str):
     start_time = time.time()
-    auth_method = st.session_state.get("openai_auth_method", "api_key")
     msg = ""
     try:
         completion = client.chat.completions.create(
@@ -487,298 +153,362 @@ def query_openai_compatible(client: openai.OpenAI, model_name: str, prompt: str,
             "out_tokens": getattr(completion.usage, 'completion_tokens', None),
             "raw_response": completion.model_dump_json(indent=2)
         }
-    except openai.APIConnectionError as e: msg = t("error_openai_connection").format(model_name=model_name, e=str(e))
+    except openai.APIConnectionError as e: msg = t("error_openai_connection", model_name=model_user_name, e=str(e))
     except openai.AuthenticationError as e:
-        msg = t("error_openai_auth_oauth" if auth_method == "oauth" else "error_openai_auth_apikey").format(model_name=model_name, e=str(e))
-    except openai.RateLimitError as e: msg = t("error_openai_ratelimit").format(model_name=model_name, e=str(e))
+        msg = t("error_openai_auth_oauth" if auth_method == "oauth" else "error_openai_auth_apikey", model_name=model_user_name, e=str(e))
+    except openai.RateLimitError as e: msg = t("error_openai_ratelimit", model_name=model_user_name, e=str(e))
     except openai.NotFoundError as e:
         base_url_str = str(client.base_url) if client else t("not_applicable_abbrev")
-        msg = t("error_openai_notfound").format(model_name=model_name, base_url=base_url_str, e=str(e))
+        msg = t("error_openai_notfound", model_id=model_name, base_url=base_url_str, e=str(e))
     except Exception as e:
         try:
             err_body = getattr(e, 'response', None)
             err_detail = err_body.json().get("error", {}).get("message", str(e)) if err_body else str(e)
-            msg = t("error_querying_openai_api").format(model_name=model_name, msg=err_detail)
-        except (json.JSONDecodeError, AttributeError): msg = t("error_querying_openai_api").format(model_name=model_name, msg=str(e))
+            msg = t("error_querying_openai_api", model_name=model_user_name, msg=err_detail)
+        except (json.JSONDecodeError, AttributeError): msg = t("error_querying_openai_api", model_name=model_user_name, msg=str(e))
     
-    return {"text": msg, "time": time.time() - start_time, "in_tokens": None, "out_tokens": None, "raw_response": {"error": msg, "details": str(e) if 'e' in locals() else "Unknown"}}
-
-# --- Streamlit Interface ---
-st.title(t("app_title"))
-st.markdown(t("app_subtitle"))
+    return {"text": msg, "time": time.time() - start_time, "error": True, "raw_response": {"error": msg, "details": str(e) if 'e' in locals() else "Unknown"}}
 
 # --- Session State Initialization ---
-default_ss = {
-    'response_details': [None] * 3, 'model_configs': [{}, {}, {}],
-    'openai_auth_method': "api_key", 'openai_api_key': "",
-    'openai_client_id': "", 'openai_client_secret': "", 'openai_token_url': "",
-    'openai_oauth_token': None, 'openai_oauth_token_status': "",
-    'last_openai_auth_signature': "", 'available_openai_models': [],
-    'force_openai_model_refresh': False, 'ollama_url': "http://localhost:11434",
-    'openai_base_url': "https://api.openai.com/v1",
-    'global_temp': 0.7, 'global_max_tokens': 1024, 'global_top_p': 0.9,
-    'num_models': 1, 'prompt_input': t("default_prompt_value")
-}
-for k, v in default_ss.items():
-    if k not in st.session_state: st.session_state[k] = v
-if len(st.session_state.model_configs) < 3: # Ensure list has 3 elements
-    st.session_state.model_configs.extend([{}] * (3 - len(st.session_state.model_configs)))
+if 'models' not in st.session_state:
+    st.session_state.models = []
+if 'prompt_input' not in st.session_state:
+    st.session_state.prompt_input = t("default_prompt_value")
+if 'comparisons_run_count' not in st.session_state:
+    st.session_state.comparisons_run_count = 0
 
+def get_default_model_config(model_number):
+    initial_service_url = DEFAULT_API_URLS[0] if DEFAULT_API_URLS else "https://api.openai.com/v1"
+    return {
+        "id": str(uuid.uuid4()),
+        "user_given_name": f"Modelo {model_number}",
+        "active": True,
+        "service_url_selection": initial_service_url,
+        "service_url_custom": "",
+        "service_url": initial_service_url,
+        "model_identifier": "gpt-3.5-turbo",
+        "auth_method": "api_key",
+        "api_key": "",
+        "oauth_client_id": "",
+        "oauth_client_secret": "",
+        "oauth_token_url": "",
+        "oauth_token_data": None,
+        "oauth_token_status": "",
+        "temperature": 0.7,
+        "max_tokens": 2048,
+        "top_p": 0.9,
+        "available_models_for_endpoint": [],
+        "manual_model_name_input": True,
+        "response_data": None,
+        "last_auth_signature_for_model_fetch": None
+    }
 
-# --- Sidebar for Global and Model-specific Settings ---
+# --- Sidebar ---
 with st.sidebar:
-    st.header(t("general_settings"))
-    st.subheader(t("credentials_endpoints"))
-
-    st.session_state.ollama_url = st.text_input(t("ollama_base_url"), value=st.session_state.ollama_url, key="ollama_url_widget")
-
-    st.markdown(f"#### {t('sidebar_openai_section_header')}")
-    st.session_state.openai_base_url = st.text_input(t("openai_base_url"), value=st.session_state.openai_base_url, help=t("openai_base_url_help"), key="openai_base_url_widget")
-
-    selected_auth_method_radio = st.radio(
-        t("openai_auth_method_label"), ["api_key", "oauth"], horizontal=True,
-        format_func=lambda x: t("api_key_option") if x == "api_key" else t("oauth_option"),
-        index=["api_key", "oauth"].index(st.session_state.openai_auth_method),
-        key="openai_auth_method_radio_widget"
-    )
-    if st.session_state.openai_auth_method != selected_auth_method_radio:
-        st.session_state.openai_auth_method = selected_auth_method_radio
-        st.session_state.force_openai_model_refresh = True
-
-    if st.session_state.openai_auth_method == "api_key":
-        st.session_state.openai_api_key = st.text_input(t("openai_api_key"), type="password", value=st.session_state.openai_api_key, help=t("openai_api_key_help"), key="openai_api_key_widget")
-    else: # oauth
-        st.session_state.openai_client_id = st.text_input(t("openai_client_id_label"), value=st.session_state.openai_client_id, key="openai_client_id_widget")
-        st.session_state.openai_client_secret = st.text_input(t("openai_client_secret_label"), type="password", value=st.session_state.openai_client_secret, key="openai_client_secret_widget")
-        st.session_state.openai_token_url = st.text_input(t("openai_token_url_label"), value=st.session_state.openai_token_url, help=t("openai_token_url_help"), key="openai_token_url_widget")
-        
-        if st.button(t("get_oauth_token_button"), key="get_oauth_token_btn_widget_sidebar"):
-            if st.session_state.openai_client_id and st.session_state.openai_client_secret and st.session_state.openai_token_url:
-                with st.spinner(t("spinner_fetching_oauth_token")):
-                    token_info, error_msg = get_oauth_token(st.session_state.openai_token_url, st.session_state.openai_client_id, st.session_state.openai_client_secret)
-                if token_info:
-                    st.session_state.openai_oauth_token = token_info
-                    expires_msg = f"(expira em {token_info.get('expires_in', 'N/A')}s)" if token_info.get('expires_in') else ""
-                    st.session_state.openai_oauth_token_status = f"{t('oauth_token_success')} {expires_msg}"
-                    st.session_state.force_openai_model_refresh = True
-                else:
-                    st.session_state.openai_oauth_token = None
-                    st.session_state.openai_oauth_token_status = t("oauth_token_error_fetching").format(error=error_msg)
-            else:
-                st.session_state.openai_oauth_token_status = t("oauth_token_missing_creds")
-        st.caption(f"{t('oauth_token_status_label')} {st.session_state.openai_oauth_token_status}")
-
-    # --- Fetch OpenAI Models (uses token from session_state, possibly set by button or last auto-fetch) ---
-    current_openai_auth_parts = [st.session_state.openai_base_url]
-    if st.session_state.openai_auth_method == "api_key":
-        current_openai_auth_parts.append(st.session_state.openai_api_key)
-    else:
-        oauth_token_obj = st.session_state.openai_oauth_token
-        if oauth_token_obj and isinstance(oauth_token_obj, dict):
-            current_openai_auth_parts.append(oauth_token_obj.get("access_token", ""))
-    current_openai_auth_signature = "|".join(filter(None, current_openai_auth_parts))
-
-    if st.session_state.openai_base_url and (current_openai_auth_signature != st.session_state.last_openai_auth_signature or st.session_state.force_openai_model_refresh):
-        st.session_state.force_openai_model_refresh = False
-        openai_client_for_models = None
-        if st.session_state.openai_auth_method == "api_key" and st.session_state.openai_api_key:
-            try: openai_client_for_models = openai.OpenAI(api_key=st.session_state.openai_api_key, base_url=st.session_state.openai_base_url)
-            except Exception as e: st.sidebar.error(f"Client Error (API Key): {str(e)[:100]}...")
-        elif st.session_state.openai_auth_method == "oauth":
-            token_data = st.session_state.openai_oauth_token
-            if token_data and isinstance(token_data, dict) and token_data.get("access_token"):
-                try: openai_client_for_models = openai.OpenAI(api_key="NA_OAUTH_TOKEN_USED", base_url=st.session_state.openai_base_url, default_headers={"Authorization": f"Bearer {token_data['access_token']}"})
-                except Exception as e: st.sidebar.error(f"Client Error (OAuth): {str(e)[:100]}...")
-        
-        if openai_client_for_models:
-            with st.spinner(t("fetching_models_from").format(base_url=st.session_state.openai_base_url)):
-                st.session_state.available_openai_models = get_openai_compatible_models(openai_client_for_models)
-        else: st.session_state.available_openai_models = []
-        st.session_state.last_openai_auth_signature = current_openai_auth_signature
-
-    st.subheader(t("inference_parameters"))
-    st.session_state.global_temp = st.slider(t("temperature"), 0.0, 2.0, st.session_state.global_temp, 0.05, key="global_temp_widget")
-    st.session_state.global_max_tokens = st.number_input(t("max_tokens"), 50, 16384, st.session_state.global_max_tokens, 50, key="global_max_tokens_widget")
-    st.session_state.global_top_p = st.slider(t("top_p"), 0.0, 1.0, st.session_state.global_top_p, 0.05, key="global_top_p_widget")
-
-    st.markdown("---")
-    st.session_state.num_models = st.radio(t("compare_models"), (1, 2, 3), index=st.session_state.num_models -1, horizontal=True, key="num_models_radio_widget")
-    st.markdown("---")
-
-    model_configs_ui_list = []
-    available_ollama_models = get_ollama_models(st.session_state.ollama_url) if st.session_state.ollama_url else []
+    st.header(t("sidebar_configurations_header"))
     
-    # Ensure model_configs list in session state has the correct number of elements
-    if len(st.session_state.model_configs) != st.session_state.num_models:
-        temp_configs = st.session_state.model_configs[:st.session_state.num_models]
-        while len(temp_configs) < st.session_state.num_models:
-            temp_configs.append({'active': (len(temp_configs) == 0)}) # First new model active
-        st.session_state.model_configs = temp_configs
+    selected_lang_display = "Português" if st.session_state.lang == "pt" else "English"
+    lang_options = {"Português": "pt", "English": "en"}
+    new_lang_display = st.selectbox(
+        t("language"), options=list(lang_options.keys()),
+        index=list(lang_options.values()).index(st.session_state.lang)
+    )
+    new_lang_code = lang_options[new_lang_display]
+    if st.session_state.lang != new_lang_code:
+        st.session_state.lang = new_lang_code
+        st.rerun()
 
-    for i in range(st.session_state.num_models):
-        st.header(t("model_config_header").format(number=i+1))
-        current_ui_config = st.session_state.model_configs[i].copy()
+    st.markdown("---")
+    st.subheader(t("ai_models_header"))
 
-        current_ui_config['active'] = st.checkbox(t("activate_model").format(number=i+1), value=current_ui_config.get('active', i==0), key=f"active_{i}_widget")
+    if st.button(t("add_model_button"), disabled=len(st.session_state.models) >= MAX_MODELS, use_container_width=True):
+        if len(st.session_state.models) < MAX_MODELS:
+            st.session_state.models.append(get_default_model_config(len(st.session_state.models) + 1))
+        else:
+            st.warning(t("max_models_reached", max=MAX_MODELS))
+    
+    if not st.session_state.models:
+        st.session_state.models.append(get_default_model_config(1))
+        st.rerun()
+
+    models_to_remove_ids = []
+    for idx, model_conf in enumerate(st.session_state.models):
+        model_id = model_conf["id"]
         
-        if current_ui_config['active']:
-            current_ui_config['endpoint_type'] = st.selectbox(t("endpoint_type").format(number=i+1), ("Ollama", "OpenAI-compatible"), index=["Ollama", "OpenAI-compatible"].index(current_ui_config.get('endpoint_type', "Ollama")), key=f"endpoint_type_{i}_widget")
-
-            if current_ui_config['endpoint_type'] == "Ollama":
-                idx = 0
-                if available_ollama_models:
-                    if current_ui_config.get('model_name') in available_ollama_models: idx = available_ollama_models.index(current_ui_config.get('model_name'))
-                    current_ui_config['model_name'] = st.selectbox(t("ollama_model_select").format(number=i+1), available_ollama_models, index=idx, key=f"ollama_model_{i}_widget")
-                else:
-                    current_ui_config['model_name'] = st.text_input(t("ollama_model_text").format(number=i+1), value=current_ui_config.get('model_name', "llama3:latest"), help=t("ollama_model_text_help"), key=f"ollama_model_text_{i}_widget")
-            else: # OpenAI-compatible
-                manual_key = f"openai_manual_toggle_{i}"
-                if manual_key not in st.session_state: st.session_state[manual_key] = not bool(st.session_state.available_openai_models)
-                st.session_state[manual_key] = st.checkbox(t("openai_type_manual_toggle").format(number=i+1), value=st.session_state[manual_key], key=manual_key + "_widget")
-                
-                idx = 0
-                if not st.session_state[manual_key] and st.session_state.available_openai_models:
-                    if current_ui_config.get('model_name') in st.session_state.available_openai_models: idx = st.session_state.available_openai_models.index(current_ui_config.get('model_name'))
-                    current_ui_config['model_name'] = st.selectbox(t("openai_model_select").format(number=i+1), st.session_state.available_openai_models, index=idx, help=t("openai_model_select_help"), key=f"openai_model_select_dd_{i}_widget")
-                else:
-                    current_ui_config['model_name'] = st.text_input(t("openai_model_text").format(number=i+1), value=current_ui_config.get('model_name', "gpt-3.5-turbo"), help=t("openai_model_text_alt_help") if not st.session_state.available_openai_models else t("openai_model_text_help"), key=f"openai_model_text_input_{i}_widget")
+        # Container for each model's controls in the sidebar
+        model_container = st.container() # Removed border=True for cleaner look
+        with model_container:
+            # Row for Name, Activation Toggle, and Remove Button
+            cols_top_controls = st.columns([0.6, 0.2, 0.2]) # Name | Toggle | Remove
             
-            current_ui_config['temperature'] = st.session_state.global_temp
-            current_ui_config['max_tokens'] = st.session_state.global_max_tokens
-            current_ui_config['top_p'] = st.session_state.global_top_p
-        
-        st.session_state.model_configs[i] = current_ui_config # Update list in place
-        st.markdown("---")
+            with cols_top_controls[0]:
+                model_conf["user_given_name"] = st.text_input(
+                    t("model_user_given_name_label"), 
+                    value=model_conf["user_given_name"], 
+                    key=f"name_top_{model_id}",
+                    label_visibility="collapsed" # Label is visually provided by "Modelos de IA" header
+                )
 
-# --- Main Area for Prompt and Responses ---
-st.subheader(t("prompt_area_header"))
-st.session_state.prompt_input = st.text_area(t("prompt_area_label"), height=150, key="prompt_input_main_widget", value=st.session_state.prompt_input)
+            with cols_top_controls[1]:
+                model_conf["active"] = st.toggle(
+                    "", # No direct label for the toggle itself
+                    value=model_conf["active"], 
+                    key=f"active_top_{model_id}", 
+                    label_visibility="collapsed", # Visually indicated by icon or position
+                    help=t("activate_model_toggle_help") + (" ✅" if model_conf["active"] else " ❌")
+                )
+                
+            with cols_top_controls[2]:
+                if st.button("🗑️", key=f"remove_top_{model_id}", help=t("remove_model_button_help"), use_container_width=True):
+                    models_to_remove_ids.append(model_id)
+            
+            # Expander for advanced settings
+            expander_label = t("model_advanced_settings_expander", name=model_conf.get('user_given_name', f'Modelo {idx+1}'))
+            with st.expander(expander_label):
+                # API Base URL with selectbox and custom input
+                url_options = DEFAULT_API_URLS + [t("service_url_select_option_other")]
+                current_url_in_use = model_conf.get("service_url", DEFAULT_API_URLS[0])
+                
+                # Determine the selection for the selectbox
+                if current_url_in_use in DEFAULT_API_URLS:
+                    current_selection_for_box = current_url_in_use
+                else: # It's a custom URL
+                    current_selection_for_box = t("service_url_select_option_other")
 
-if st.button(t("generate_button"), type="primary", key="generate_btn_widget"):
+                selected_option = st.selectbox(
+                    t("service_url_label"),
+                    options=url_options,
+                    index=url_options.index(current_selection_for_box),
+                    key=f"service_url_select_expanded_{model_id}"
+                )
+
+                if selected_option == t("service_url_select_option_other"):
+                    custom_url_value = model_conf.get("service_url_custom", current_url_in_use if current_url_in_use not in DEFAULT_API_URLS else "")
+                    model_conf["service_url_custom"] = st.text_input(
+                        t("service_url_custom_label"),
+                        value=custom_url_value,
+                        key=f"service_url_custom_input_expanded_{model_id}",
+                        help=t("service_url_help_openai")
+                    )
+                    model_conf["service_url"] = model_conf["service_url_custom"]
+                else:
+                    model_conf["service_url"] = selected_option
+                    model_conf["service_url_custom"] = "" # Clear custom if a default is chosen
+                model_conf["service_url_selection"] = selected_option # Store the selectbox choice
+
+                # Authentication Method
+                model_conf["auth_method"] = st.radio(t("auth_method_label"), ["api_key", "oauth"],
+                                                        index=0 if model_conf["auth_method"] == "api_key" else 1,
+                                                        key=f"auth_method_expanded_{model_id}", horizontal=True)
+                if model_conf["auth_method"] == "api_key":
+                    model_conf["api_key"] = st.text_input(t("api_key_label"), type="password", value=model_conf["api_key"], help=t("api_key_help"), key=f"apikey_expanded_{model_id}")
+                else: # OAuth
+                    model_conf["oauth_client_id"] = st.text_input(t("client_id_label"), value=model_conf["oauth_client_id"], key=f"oauth_client_id_expanded_{model_id}")
+                    model_conf["oauth_client_secret"] = st.text_input(t("client_secret_label"), type="password", value=model_conf["oauth_client_secret"], key=f"oauth_secret_expanded_{model_id}")
+                    model_conf["oauth_token_url"] = st.text_input(t("token_url_label"), value=model_conf["oauth_token_url"], help=t("token_url_help"), key=f"oauth_token_url_expanded_{model_id}")
+                    if st.button(t("get_oauth_token_button"), key=f"get_oauth_btn_expanded_{model_id}"):
+                        if model_conf["oauth_client_id"] and model_conf["oauth_client_secret"] and model_conf["oauth_token_url"]:
+                            with st.spinner(t("spinner_fetching_oauth_token")):
+                                token_info, error_msg = get_oauth_token(model_conf["oauth_token_url"], model_conf["oauth_client_id"], model_conf["oauth_client_secret"])
+                            if token_info:
+                                model_conf["oauth_token_data"] = token_info
+                                expires_msg = f"(expira em {token_info.get('expires_in', 'N/A')}s)" if token_info.get('expires_in') else ""
+                                model_conf["oauth_token_status"] = f"{t('oauth_token_success')} {expires_msg}"
+                            else:
+                                model_conf["oauth_token_data"] = None
+                                model_conf["oauth_token_status"] = t("oauth_token_error_fetching", error=error_msg)
+                        else:
+                            model_conf["oauth_token_status"] = t("oauth_token_missing_creds")
+                    st.caption(f"{t('oauth_token_status_label')} {model_conf['oauth_token_status']}")
+                
+                # Model Listing Logic
+                current_openai_auth_parts = [model_conf["service_url"]]
+                if model_conf["auth_method"] == "api_key": current_openai_auth_parts.append(model_conf["api_key"])
+                else:
+                    if model_conf.get("oauth_token_data") and isinstance(model_conf["oauth_token_data"], dict):
+                         current_openai_auth_parts.append(model_conf["oauth_token_data"].get("access_token",""))
+                current_openai_auth_signature = "|".join(filter(None, current_openai_auth_parts))
+
+                if model_conf["service_url"] and model_conf["service_url"].startswith("http") and \
+                   (current_openai_auth_signature != model_conf.get("last_auth_signature_for_model_fetch")):
+                    temp_client = None
+                    can_fetch = False
+                    if model_conf["auth_method"] == "api_key" and model_conf["api_key"]: can_fetch = True
+                    elif model_conf["auth_method"] == "oauth" and model_conf.get("oauth_token_data") and model_conf["oauth_token_data"].get("access_token"): can_fetch = True
+                    
+                    if can_fetch:
+                        try:
+                            api_key_to_use = model_conf["api_key"] if model_conf["auth_method"] == "api_key" else "DUMMY_OAUTH_TOKEN_PLACEHOLDER"
+                            headers = {}
+                            if model_conf["auth_method"] == "oauth":
+                                headers["Authorization"] = f"Bearer {model_conf['oauth_token_data']['access_token']}"
+                            temp_client = openai.OpenAI(api_key=api_key_to_use, base_url=model_conf["service_url"], default_headers=headers if headers else None)
+                            with st.spinner(t("fetching_models_from", base_url=model_conf["service_url"])):
+                                model_conf["available_models_for_endpoint"] = get_openai_compatible_models(temp_client, model_id)
+                            model_conf["last_auth_signature_for_model_fetch"] = current_openai_auth_signature
+                            model_conf["manual_model_name_input"] = not bool(model_conf["available_models_for_endpoint"])
+                        except Exception as e:
+                            st.toast(f"Erro ao conectar/listar modelos para {model_conf['user_given_name']}: {str(e)[:100]}", icon="🔥")
+                            model_conf["available_models_for_endpoint"] = []
+                            model_conf["manual_model_name_input"] = True
+                
+                # API Model Name Input
+                model_conf["manual_model_name_input"] = st.checkbox(t("manual_model_name_toggle"), value=model_conf["manual_model_name_input"], key=f"openai_manual_toggle_expanded_{model_id}")
+                if not model_conf["manual_model_name_input"] and model_conf.get("available_models_for_endpoint"):
+                    try: current_selection_idx = model_conf["available_models_for_endpoint"].index(model_conf["model_identifier"])
+                    except ValueError: current_selection_idx = 0
+                    model_conf["model_identifier"] = st.selectbox(t("model_identifier_label_openai"), model_conf["available_models_for_endpoint"], index=current_selection_idx, help=t("model_identifier_help_select"), key=f"openai_model_select_expanded_{model_id}")
+                else:
+                    model_conf["model_identifier"] = st.text_input(t("model_identifier_label_openai"), value=model_conf["model_identifier"], help=t("model_identifier_help_text_openai"), key=f"openai_model_text_expanded_{model_id}")
+                
+                # Inference Parameters
+                model_conf["temperature"] = st.slider(t("temperature_label"), 0.0, 2.0, model_conf["temperature"], 0.05, key=f"temp_expanded_{model_id}")
+                model_conf["max_tokens"] = st.number_input(t("max_tokens_label"), 50, 16384, model_conf["max_tokens"], 50, key=f"max_tokens_expanded_{model_id}")
+                model_conf["top_p"] = st.slider(t("top_p_label"), 0.0, 1.0, model_conf["top_p"], 0.05, key=f"top_p_expanded_{model_id}")
+        st.markdown("---") # Separator between models
+    
+    if models_to_remove_ids:
+        st.session_state.models = [m for m in st.session_state.models if m["id"] not in models_to_remove_ids]
+        st.rerun()
+
+# --- Main Area ---
+active_models_list = [m for m in st.session_state.models if m.get("active")]
+num_active_models = len(active_models_list)
+
+st.title(t("app_header_title"))
+st.caption(t("app_subtitle"))
+
+metric_cols = st.columns(2)
+with metric_cols[0]:
+    st.metric(label=t("models_active_counter"), value=f"⚡ {num_active_models}")
+with metric_cols[1]:
+    st.metric(label=t("comparisons_run_counter"), value=f"🔄 {st.session_state.comparisons_run_count}")
+
+st.session_state.prompt_input = st.text_area(
+    t("prompt_area_header", count=num_active_models) if num_active_models > 0 else t("prompt_placeholder_no_active_model"),
+    value=st.session_state.prompt_input,
+    height=150,
+    key="prompt_input_main_widget",
+    placeholder=t("prompt_area_label")
+)
+st.caption(t("prompt_char_count_label", count=len(st.session_state.prompt_input)))
+
+if st.button(t("send_button"), type="primary", key="send_btn_widget", disabled=num_active_models == 0, use_container_width=True):
     if not st.session_state.prompt_input.strip():
         st.warning(t("warning_empty_prompt"))
+    elif num_active_models == 0:
+        st.warning(t("warning_no_active_models_configured"))
     else:
-        st.session_state.response_details = [None] * 3
-        active_configs = [(idx, conf) for idx, conf in enumerate(st.session_state.model_configs[:st.session_state.num_models]) if conf.get('active')]
+        for model_in_state in st.session_state.models:
+            if model_in_state["id"] in [m_active["id"] for m_active in active_models_list]:
+                model_in_state["response_data"] = None
         
-        if not active_configs:
-            st.warning(t("info_no_active_models"))
-        else:
-            # --- Auto-fetch OAuth token if needed for this run ---
-            globally_fetched_oauth_token_this_run = None
-            globally_fetched_oauth_error_this_run = None
-            needs_oauth_for_this_run = False
+        with st.spinner(t("spinner_generating")):
+            for current_model_state in active_models_list:
+                if not current_model_state.get('model_identifier', '').strip():
+                    current_model_state["response_data"] = {"text": t("error_model_not_specified", model_name=current_model_state['user_given_name']), "error": True, "time":0}
+                    continue
+                if not current_model_state.get('service_url', '').strip() or not current_model_state['service_url'].startswith("http"):
+                    current_model_state["response_data"] = {"text": t("error_service_url_not_set", model_name=current_model_state['user_given_name']), "error": True, "time":0}
+                    continue
 
-            if st.session_state.openai_auth_method == "oauth":
-                for _, conf in active_configs:
-                    if conf.get('endpoint_type') == "OpenAI-compatible":
-                        needs_oauth_for_this_run = True
-                        break
-            
-            if needs_oauth_for_this_run:
-                if not (st.session_state.openai_client_id and st.session_state.openai_client_secret and st.session_state.openai_token_url):
-                    globally_fetched_oauth_error_this_run = t("oauth_token_missing_creds")
-                    st.session_state.openai_oauth_token_status = globally_fetched_oauth_error_this_run # Update sidebar status
-                else:
-                    with st.spinner(t("spinner_fetching_oauth_token")):
-                        token_info, error_msg = get_oauth_token(st.session_state.openai_token_url, st.session_state.openai_client_id, st.session_state.openai_client_secret)
-                    if token_info:
-                        globally_fetched_oauth_token_this_run = token_info
-                        st.session_state.openai_oauth_token = token_info # Update global state
-                        expires_msg = f"(expira em {token_info.get('expires_in', 'N/A')}s)" if token_info.get('expires_in') else ""
-                        st.session_state.openai_oauth_token_status = f"{t('oauth_token_success')} {expires_msg}"
-                        st.session_state.force_openai_model_refresh = True # In case model list needs update
+                response_data = {}
+                client = None
+                error_msg_client = ""
+                api_key_to_use = "DUMMY_PLACEHOLDER" 
+                headers = {}
+
+                if current_model_state['auth_method'] == "api_key":
+                    if not current_model_state['api_key']:
+                        error_msg_client = t("error_api_key_not_set", model_name=current_model_state['user_given_name'])
                     else:
-                        globally_fetched_oauth_error_this_run = error_msg
-                        st.session_state.openai_oauth_token = None # Clear global token on error
-                        st.session_state.openai_oauth_token_status = t("oauth_token_error_fetching").format(error=error_msg)
-                        st.session_state.force_openai_model_refresh = True
+                        api_key_to_use = current_model_state['api_key']
+                
+                elif current_model_state['auth_method'] == "oauth":
+                    if not (current_model_state['oauth_client_id'] and current_model_state['oauth_client_secret'] and current_model_state['oauth_token_url']):
+                            error_msg_client = t("error_oauth_creds_not_set_for_auto_fetch", model_name=current_model_state['user_given_name'])
+                    elif not current_model_state.get('oauth_token_data') or not current_model_state['oauth_token_data'].get("access_token"):
+                        with st.spinner(f"{current_model_state['user_given_name']}: {t('spinner_fetching_oauth_token')}"):
+                            token_info, err_msg = get_oauth_token(current_model_state['oauth_token_url'], current_model_state['oauth_client_id'], current_model_state['oauth_client_secret'])
+                        if token_info:
+                            current_model_state['oauth_token_data'] = token_info
+                            current_model_state['oauth_token_status'] = t('oauth_token_success')
+                            headers["Authorization"] = f"Bearer {token_info['access_token']}"
+                        else:
+                            error_msg_client = t("error_oauth_token_unavailable", model_name=current_model_state['user_given_name']) + f" ({err_msg})"
+                            current_model_state['oauth_token_status'] = error_msg_client
+                    else:
+                            headers["Authorization"] = f"Bearer {current_model_state['oauth_token_data']['access_token']}"
+                
+                if not error_msg_client:
+                    try:
+                        client = openai.OpenAI(api_key=api_key_to_use, base_url=current_model_state['service_url'], default_headers=headers if headers else None)
+                    except Exception as e:
+                        error_msg_client = t("error_creating_openai_client_api_key" if current_model_state['auth_method'] == "api_key" else "error_creating_openai_client_oauth", model_name=current_model_state['user_given_name'], e=str(e))
 
-            # --- Process models ---
-            with st.spinner(t("spinner_generating")):
-                for original_idx, config in active_configs:
-                    if not config.get('model_name', '').strip():
-                        st.session_state.response_details[original_idx] = {"text": t("error_model_not_specified").format(number=original_idx+1), "time": 0, "in_tokens": None, "out_tokens": None, "raw_response": {}}
-                        continue
-
-                    response_data = {}
-                    if config['endpoint_type'] == "Ollama":
-                        if not st.session_state.ollama_url: response_data = {"text": t("error_ollama_url_not_set").format(number=original_idx+1), "time": 0, "in_tokens": None, "out_tokens": None, "raw_response": {}}
-                        else: response_data = query_ollama(st.session_state.ollama_url, config['model_name'], st.session_state.prompt_input, config['temperature'], config['max_tokens'], config['top_p'])
-                    
-                    elif config['endpoint_type'] == "OpenAI-compatible":
-                        client = None
-                        error_msg_client = ""
-
-                        if not st.session_state.openai_base_url: error_msg_client = t("error_openai_base_url_not_set").format(number=original_idx+1)
-                        elif st.session_state.openai_auth_method == "api_key":
-                            if not st.session_state.openai_api_key: error_msg_client = t("error_openai_apikey_not_set").format(number=original_idx+1)
-                            else:
-                                try: client = openai.OpenAI(api_key=st.session_state.openai_api_key, base_url=st.session_state.openai_base_url)
-                                except Exception as e: error_msg_client = t("error_creating_openai_client_api_key").format(number=original_idx+1, e=str(e))
-                        
-                        elif st.session_state.openai_auth_method == "oauth":
-                            if globally_fetched_oauth_error_this_run: # Check error from global fetch first
-                                if globally_fetched_oauth_error_this_run == t("oauth_token_missing_creds"):
-                                     error_msg_client = t("error_openai_oauth_creds_not_set_for_auto_fetch").format(number=original_idx+1)
-                                else:
-                                     error_msg_client = t("oauth_token_error_auto_fetching").format(error=globally_fetched_oauth_error_this_run)
-                            elif not globally_fetched_oauth_token_this_run or not globally_fetched_oauth_token_this_run.get("access_token"):
-                                error_msg_client = t("error_oauth_token_unavailable").format(number=original_idx+1) # Should not happen if logic above is correct
-                            else:
-                                try: client = openai.OpenAI(api_key="NA_OAUTH_TOKEN_USED", base_url=st.session_state.openai_base_url, default_headers={"Authorization": f"Bearer {globally_fetched_oauth_token_this_run['access_token']}"})
-                                except Exception as e: error_msg_client = t("error_creating_openai_client_oauth").format(number=original_idx+1, e=str(e))
-
-                        if error_msg_client: response_data = {"text": error_msg_client, "time": 0, "in_tokens": None, "out_tokens": None, "raw_response": {}}
-                        elif client: response_data = query_openai_compatible(client, config['model_name'], st.session_state.prompt_input, config['temperature'], config['max_tokens'], config['top_p'])
-                        else: response_data = {"text": "Cliente OpenAI não pôde ser inicializado (erro desconhecido).", "time": 0, "in_tokens": None, "out_tokens": None, "raw_response": {}}
-
-
-                    st.session_state.response_details[original_idx] = response_data
-            st.success(t("success_responses_generated"))
-            if needs_oauth_for_this_run and st.session_state.force_openai_model_refresh : # If token fetch triggered refresh, rerun
-                st.rerun()
-
+                if error_msg_client: response_data = {"text": error_msg_client, "time": 0, "error": True}
+                elif client:
+                    response_data = query_openai_compatible(client, current_model_state['model_identifier'], st.session_state.prompt_input,
+                                                            current_model_state['temperature'], current_model_state['max_tokens'], current_model_state['top_p'],
+                                                            current_model_state['user_given_name'], current_model_state['auth_method'])
+                else: response_data = {"text": "Cliente OpenAI não pôde ser inicializado (erro desconhecido).", "time": 0, "error": True}
+                
+                current_model_state["response_data"] = response_data
+        st.success(t("success_responses_generated"))
+        st.session_state.comparisons_run_count += 1
+        st.rerun()
 
 # --- Display Responses ---
-st.subheader(t("comparison_results_header"))
-active_indices_with_details = [
-    i for i, details in enumerate(st.session_state.response_details[:st.session_state.num_models])
-    if details is not None and i < len(st.session_state.model_configs) and st.session_state.model_configs[i].get('active', False)
-]
+active_models_for_display = [m for m in st.session_state.models if m.get("active")]
+num_active_for_display = len(active_models_for_display)
+show_results_header = any(m.get("response_data") for m in active_models_for_display)
 
-if active_indices_with_details:
-    cols = st.columns(len(active_indices_with_details))
-    for col_idx, i in enumerate(active_indices_with_details):
-        conf = st.session_state.model_configs[i]
-        resp_detail = st.session_state.response_details[i]
+if num_active_for_display > 0:
+    if show_results_header:
+        # st.subheader(t("comparison_results_header")) # Subheader é opcional se o layout for claro
+        cols_responses = st.columns(num_active_for_display)
         
-        name = conf.get('model_name', '') or t("model_not_configured").format(number=i+1)
-        
-        with cols[col_idx]:
-            st.markdown(f"#### {t('model_display_name_header').format(number=i+1, name=name)}")
-            st.markdown(f"**{t('endpoint_label')}** `{conf.get('endpoint_type', t('not_applicable_abbrev'))}`")
+        for col_idx, model_conf_display in enumerate(active_models_for_display):
+            resp_detail = model_conf_display.get("response_data")
             
-            st.markdown(f"**{t('inference_metrics_header')}**")
-            m_cols = st.columns(3)
-            m_cols[0].metric(t("inference_time_label"), f"{resp_detail.get('time', 0):.2f} {t('seconds_unit_short')}" if resp_detail.get('time') is not None else t("not_applicable_abbrev"))
-            m_cols[1].metric(t("input_tokens_label"), str(resp_detail.get('in_tokens', 'N/A')))
-            m_cols[2].metric(t("output_tokens_label"), str(resp_detail.get('out_tokens', 'N/A')))
+            with cols_responses[col_idx]:
+                # Usar st.container com borda para cada card de resposta, como na imagem de referência
+                with st.container(border=True):
+                    st.markdown(f"##### {t('model_display_name_header', user_name=model_conf_display['user_given_name'])}")
+                    st.caption(t("model_tech_name_subheader", tech_name=model_conf_display['model_identifier']))
+                    
+                    if resp_detail:
+                        st.markdown(f"**{t('inference_metrics_header')}**")
+                        metric_cols_response = st.columns(3)
+                        metric_cols_response[0].metric(t("inference_time_label"), f"{resp_detail.get('time', 0):.2f}{t('seconds_unit_short')}" if resp_detail.get('time') is not None else t("not_applicable_abbrev"))
+                        metric_cols_response[1].metric(t("input_tokens_label"), str(resp_detail.get('in_tokens', t("not_applicable_abbrev"))))
+                        metric_cols_response[2].metric(t("output_tokens_label"), str(resp_detail.get('out_tokens', t("not_applicable_abbrev"))))
 
-            with st.expander(t("parameters_used_expander")):
-                st.caption(t("parameters_caption").format(temp=conf.get('temperature', st.session_state.global_temp), max_tokens=conf.get('max_tokens', st.session_state.global_max_tokens), top_p=conf.get('top_p', st.session_state.global_top_p)))
-                if resp_detail.get("raw_response"):
-                    try:
-                        raw = resp_detail["raw_response"]
-                        st.json(json.loads(raw) if isinstance(raw, str) else raw, expanded=False)
-                    except Exception: st.text(str(raw)[:1000] + "...")
-            
-            st.text_area(t("response_from_model_label").format(model_name=name), str(resp_detail.get('text', '')), height=350, key=f"response_output_{i}_widget", disabled=True, label_visibility="collapsed")
+                        with st.expander(t("parameters_used_expander")):
+                            st.caption(t("parameters_caption", temp=model_conf_display['temperature'], max_tokens=model_conf_display['max_tokens'], top_p=model_conf_display['top_p']))
+                            if resp_detail.get("raw_response"):
+                                try:
+                                    raw = resp_detail["raw_response"]
+                                    st.json(json.loads(raw) if isinstance(raw, str) else raw, expanded=False)
+                                except Exception: st.text(str(raw)[:1000] + "...")
+                        
+                        response_text_display = str(resp_detail.get('text', ''))
+                        if resp_detail.get("error"):
+                            st.error(response_text_display if response_text_display else t("error_general_response_area", msg=t("not_applicable_abbrev")), icon="🚨")
+                        else:
+                            st.text_area(t("response_from_model_label"), response_text_display, height=250, key=f"response_output_{model_conf_display['id']}", disabled=True, label_visibility="collapsed")
+                    else: # Model is active, but no response data for it yet (e.g., before first "Send")
+                        st.info(t("info_click_send")) # This state might be brief or not often seen if "Send" populates all active.
+    else: # Active models exist, but no response data for any of them (e.g., fresh start)
+        placeholder_container_main = st.container(border=True)
+        with placeholder_container_main:
+             st.markdown(f"<div style='text-align: center; padding: 40px;'>{t('info_placeholder_no_results')}</div>", unsafe_allow_html=True)
 
-elif any(st.session_state.model_configs[i].get('active') for i in range(st.session_state.num_models) if i < len(st.session_state.model_configs)):
-    st.info(t("info_click_generate"))
-else:
-    st.info(t("info_no_active_models"))
-
-st.sidebar.markdown("---")
-st.sidebar.info(f"**{t('how_to_use_header')}**\n{t('how_to_use_content')}")
+elif not st.session_state.models: # No models configured at all
+    placeholder_container_main = st.container(border=True)
+    with placeholder_container_main:
+        st.markdown(f"<div style='text-align: center; padding: 40px;'>{t('info_placeholder_no_results')}</div>", unsafe_allow_html=True)
+else: # Models might exist but none are active
+    placeholder_container_main = st.container(border=True)
+    with placeholder_container_main:
+        st.markdown(f"<div style='text-align: center; padding: 40px;'>{t('warning_no_active_models_configured')}</div>", unsafe_allow_html=True)
