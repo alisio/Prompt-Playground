@@ -454,7 +454,7 @@ with st.sidebar:
     st.sidebar.markdown("---")
     # Source Code Section
     st.sidebar.subheader(t("source_code_header"))
-    st.sidebar.markdown(f"{t('source_code_text')} [TestaAI](https://github.com/alisio/Prompt-Playground)")
+    st.sidebar.markdown(f"{t('source_code_text')} [TestaAI](https://github.com/alisio/testa_ai-prompt-playground)")
 
     st.sidebar.markdown("---")
     # Author Section
