@@ -361,7 +361,7 @@ with st.sidebar:
                 if model_conf["auth_method"] == "api_key":
                     model_conf["api_key"] = st.text_input(t("api_key_label"), type="password", value=model_conf["api_key"], help=t("api_key_help"), key=f"apikey_expanded_{model_id}")
                 else: 
-                    model_conf["oauth_client_id"] = st.text_input(t("client_id_label"), value=model_conf["oauth_client_id"], key=f"oauth_client_id_expanded_{model_id}")
+                    model_conf["oauth_client_id"] = st.text_input(t("client_id_label"), value=model_conf["oauth_client_id"],type="password" , key=f"oauth_client_id_expanded_{model_id}")
                     model_conf["oauth_client_secret"] = st.text_input(t("client_secret_label"), type="password", value=model_conf["oauth_client_secret"], key=f"oauth_secret_expanded_{model_id}")
                     model_conf["oauth_token_url"] = st.text_input(t("token_url_label"), value=model_conf["oauth_token_url"], help=t("token_url_help"), key=f"oauth_token_url_expanded_{model_id}")
                     if st.button(t("get_oauth_token_button"), key=f"get_oauth_btn_expanded_{model_id}"):
