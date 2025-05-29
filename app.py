@@ -203,13 +203,13 @@ def get_openai_compatible_models(client: openai.OpenAI, model_config_id):
         st.toast(f"Modelo ID {model_config_id}: Erro ao listar modelos OpenAI: {str(e)[:100]}", icon="⚠️")
         return []
 
-def query_openai_compatible(client: openai.OpenAI, model_name: str, prompt: str, temperature: float, max_tokens: int, top_p: float, model_user_name: str, auth_method: str):
+def query_openai_compatible(client: openai.OpenAI, model_name: str, prompt: str, temperature: float, max_tokens: int, top_p: float, model_user_name: str, auth_method: str, seed: int):
     start_time = time.time()
     msg = ""
     try:
         completion = client.chat.completions.create(
             model=model_name, messages=[{"role": "user", "content": prompt}],
-            temperature=temperature, max_tokens=max_tokens, top_p=top_p
+            temperature=temperature, max_tokens=max_tokens, top_p=top_p, seed=seed,  
         )
         return {
             "text": completion.choices[0].message.content, "time": time.time() - start_time,
@@ -261,6 +261,7 @@ def get_default_model_config(model_number):
         "temperature": 0.7,
         "max_tokens": 2048,
         "top_p": 0.9,
+        "seed": 42,
         "available_models_for_endpoint": [],
         "manual_model_name_input": True,
         "response_data": None,
@@ -420,6 +421,9 @@ with st.sidebar:
                 model_conf["temperature"] = st.slider(t("temperature_label"), 0.0, 2.0, model_conf["temperature"], 0.05, key=f"temp_expanded_{model_id}")
                 model_conf["max_tokens"] = st.number_input(t("max_tokens_label"), 50, 16384, model_conf["max_tokens"], 50, key=f"max_tokens_expanded_{model_id}")
                 model_conf["top_p"] = st.slider(t("top_p_label"), 0.0, 1.0, model_conf["top_p"], 0.05, key=f"top_p_expanded_{model_id}")
+                model_conf["seed"] = st.number_input( "Seed", value=model_conf.get("seed", 42), min_value=0, max_value=2**32 - 1, step=1, key=f"seed_expanded_{model_id}"
+)
+
         st.markdown("---") 
     
     if models_to_remove_ids:
@@ -550,7 +554,7 @@ if st.button(t("send_button"), type="primary", key="send_btn_widget", disabled=n
                 elif client:
                     response_data = query_openai_compatible(client, current_model_state['model_identifier'], st.session_state.prompt_input,
                                                             current_model_state['temperature'], current_model_state['max_tokens'], current_model_state['top_p'],
-                                                            current_model_state['user_given_name'], current_model_state['auth_method'])
+                                                            current_model_state['user_given_name'], current_model_state['auth_method'],current_model_state.get('seed', 42))
                 else: response_data = {"text": "Cliente OpenAI não pôde ser inicializado (erro desconhecido).", "time": 0, "error": True}
                 
                 current_model_state["response_data"] = response_data
