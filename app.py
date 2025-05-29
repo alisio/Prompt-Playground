@@ -268,6 +268,15 @@ def get_default_model_config(model_number):
         "last_auth_signature_for_model_fetch": None
     }
 
+def clone_model_config(model_config):
+    new_config = json.loads(json.dumps(model_config))  # Deep copy via JSON
+    new_config["id"] = str(uuid.uuid4())
+    new_config["user_given_name"] = f"{model_config['user_given_name']} (cópia)"
+    new_config["response_data"] = None
+    new_config["last_auth_signature_for_model_fetch"] = None
+    return new_config
+
+
 # --- Sidebar ---
 with st.sidebar:
     st.header(t("sidebar_configurations_header"))
@@ -291,6 +300,7 @@ with st.sidebar:
             st.session_state.models.append(get_default_model_config(len(st.session_state.models) + 1))
         else:
             st.warning(t("max_models_reached", max=MAX_MODELS))
+            
     
     if not st.session_state.models:
         st.session_state.models.append(get_default_model_config(1))
@@ -302,7 +312,9 @@ with st.sidebar:
         
         model_container = st.container() 
         with model_container:
-            cols_top_controls = st.columns([0.6, 0.2, 0.2])
+            # cols_top_controls = st.columns([0.6, 0.2, 0.2])
+            cols_top_controls = st.columns([0.5, 0.2, 0.15, 0.15])
+
             
             with cols_top_controls[0]:
                 model_conf["user_given_name"] = st.text_input(
@@ -324,6 +336,16 @@ with st.sidebar:
             with cols_top_controls[2]:
                 if st.button("🗑️", key=f"remove_top_{model_id}", help=t("remove_model_button_help"), use_container_width=True):
                     models_to_remove_ids.append(model_id)
+
+            with cols_top_controls[3]:
+                if st.button("📄", key=f"duplicate_top_{model_id}", help="Duplicar este modelo", use_container_width=True):
+                    if len(st.session_state.models) < MAX_MODELS:
+                        cloned = clone_model_config(model_conf)
+                        st.session_state.models.append(cloned)
+                        st.rerun()
+                    else:
+                        st.warning(t("max_models_reached", max=MAX_MODELS))
+
             
             expander_label = t("model_advanced_settings_expander", name=model_conf.get('user_given_name', f'Modelo {idx+1}'))
             with st.expander(expander_label):
